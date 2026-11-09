@@ -9,10 +9,14 @@ const allowHttp = config => withAndroidManifest(config, c => {
 module.exports = {
   name: 'JobPilot',
   slug: 'jobpilot',
-  version: '1.0.0',
+  version: '1.1.0',
+  icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'jobpilot',
   userInterfaceStyle: 'automatic',
-  android: { package: 'com.jobpilot.app', versionCode: 1 },
+  android: {
+    package: 'com.jobpilot.app', versionCode: 2,
+    adaptiveIcon: { foregroundImage: './assets/adaptive-fg.png', backgroundImage: './assets/adaptive-bg.png' },
+  },
   plugins: ['expo-router', 'expo-secure-store', 'expo-sharing', 'expo-web-browser', 'expo-status-bar', allowHttp],
 }

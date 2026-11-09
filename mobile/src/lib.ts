@@ -6,7 +6,9 @@ import * as Sharing from 'expo-sharing'
 import { createApi, ApiError, type ApplicationStatus, type User } from '../../shared/api'
 export * from '../../shared/api'
 
-let server = ''
+/** The hosted backend (Render free plan, sleeps when idle: the first request can take ~50 s). */
+export const DEFAULT_SERVER = 'https://jobpilot-api-gpa6.onrender.com'
+let server = DEFAULT_SERVER
 let token: string | null = null
 export const auth = { onSignedOut: () => {} }
 
@@ -17,7 +19,7 @@ export const api = createApi({
 })
 
 export async function loadStored() {
-  server = (await SecureStore.getItemAsync('server')) ?? ''
+  server = (await SecureStore.getItemAsync('server')) || DEFAULT_SERVER
   token = await SecureStore.getItemAsync('token')
   return { server, token }
 }
@@ -33,7 +35,9 @@ export function setToken(t: string | null) {
 export const serverAddress = () => server
 
 export const msg = (e: unknown) =>
-  e instanceof ApiError ? e.message : `Can't reach ${server || 'the server'}. Is the PC on, JobPilot running, and the phone on the same Wi-Fi?`
+  e instanceof ApiError ? e.message : server === DEFAULT_SERVER
+    ? 'The server is waking up (free hosting sleeps when idle). Wait half a minute and try again.'
+    : `Can't reach ${server || 'the server'}. Is the PC on, JobPilot running, and the phone on the same Wi-Fi?`
 
 export type Gaps = { missing: string[]; percent: number }
 type Session = { user: User | null; setUser: (u: User | null) => void; gaps: Gaps | null; recheck: () => Promise<void> }

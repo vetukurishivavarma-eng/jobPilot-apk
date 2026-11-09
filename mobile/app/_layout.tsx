@@ -39,7 +39,7 @@ export default function Root() {
         {/* one keyboard wrapper for every screen (Android edge-to-edge doesn't resize by itself) */}
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bg }}>
           <Stack screenOptions={{
-            headerShadowVisible: false, headerStyle: { backgroundColor: c.bg }, headerTintColor: c.ink,
+            headerShadowVisible: false, headerStyle: { backgroundColor: c.bg }, headerTintColor: c.accent,
             headerTitleStyle: { fontWeight: '700' }, contentStyle: { backgroundColor: c.bg },
           }}>
             <Stack.Protected guard={!user}>

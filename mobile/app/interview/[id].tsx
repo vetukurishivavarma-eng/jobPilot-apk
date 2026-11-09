@@ -41,8 +41,8 @@ export default function InterviewSessionScreen() {
         {s.items.map((q, n) => (
           <Pressable key={n} onPress={() => { setI(n); setError(null) }} accessibilityState={{ selected: n === i }}
             style={{ minWidth: 44, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1,
-              borderColor: n === i ? c.ink : q.answer ? c.accent : c.line, backgroundColor: n === i ? c.ink : q.answer ? c.accentSoft : c.card }}>
-            <T small bold style={{ color: n === i ? c.bg : q.answer ? c.accent : c.muted }}>{n + 1}{q.feedback?.score != null ? ` · ${q.feedback.score}` : ''}</T>
+              borderColor: n === i ? c.pop : q.answer ? c.accent : c.line, backgroundColor: n === i ? c.pop : q.answer ? c.accentSoft : c.card }}>
+            <T small bold style={{ color: n === i ? '#ffffff' : q.answer ? c.accent : c.muted }}>{n + 1}{q.feedback?.score != null ? ` · ${q.feedback.score}` : ''}</T>
           </Pressable>
         ))}
       </Row>

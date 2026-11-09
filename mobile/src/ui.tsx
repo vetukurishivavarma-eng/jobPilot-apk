@@ -3,14 +3,18 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 
-// Same palette as the website (ink / paper / signal green), plus a dark twin.
+// Vivid palette: violet primary, pink pop, emerald for good matches, cyan for done; plus a dark twin.
 const light = {
-  bg: '#f6f4ef', card: '#ffffff', ink: '#16181d', muted: '#6b6a64', line: '#dedad0',
-  accent: '#1f6f5c', accentSoft: '#dcefe8', danger: '#b42318', warn: '#8a5300', warnSoft: '#fbeed5',
+  bg: '#f6f3ff', card: '#ffffff', ink: '#1e1b4b', muted: '#6b6894', line: '#e6e1fa',
+  accent: '#7c3aed', accentSoft: '#ede9fe', pop: '#ec4899', popSoft: '#fce7f3',
+  good: '#059669', goodSoft: '#d1fae5', info: '#0891b2', infoSoft: '#cffafe',
+  danger: '#e11d48', warn: '#c2410c', warnSoft: '#ffedd5',
 }
 const dark: typeof light = {
-  bg: '#111315', card: '#1a1d20', ink: '#ecebe6', muted: '#9a988f', line: '#2c3034',
-  accent: '#5cc4a6', accentSoft: '#173a31', danger: '#f0857a', warn: '#e5b25a', warnSoft: '#3a2e17',
+  bg: '#0e0a1f', card: '#1a1433', ink: '#f3f0ff', muted: '#a49fc7', line: '#2e2654',
+  accent: '#a78bfa', accentSoft: '#2b1f55', pop: '#f472b6', popSoft: '#45193a',
+  good: '#34d399', goodSoft: '#0f3a2e', info: '#22d3ee', infoSoft: '#0c3540',
+  danger: '#fb7185', warn: '#fb923c', warnSoft: '#43230f',
 }
 export type Colors = typeof light
 export const useColors = () => (useColorScheme() === 'dark' ? dark : light)
@@ -38,8 +42,12 @@ export function Title({ children, kicker }: { children: ReactNode; kicker?: stri
   const c = useColors()
   return (
     <View style={{ marginBottom: 2 }}>
-      {kicker && <Text style={[s.kicker, { color: c.accent }]}>{kicker}</Text>}
+      {kicker && <Text style={[s.kicker, { color: c.pop }]}>{kicker}</Text>}
       <Text style={[s.title, { color: c.ink }]}>{children}</Text>
+      <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
+        <View style={{ width: 28, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+        <View style={{ width: 10, height: 4, borderRadius: 2, backgroundColor: c.pop }} />
+      </View>
     </View>
   )
 }
@@ -56,18 +64,19 @@ export function Label({ children }: { children: ReactNode }) {
 
 export function Card({ children, tone, style }: { children: ReactNode; tone?: 'accent' | 'warn' | 'danger'; style?: ViewStyle }) {
   const c = useColors()
-  const border = tone === 'accent' ? c.accent : tone === 'warn' ? c.warn : tone === 'danger' ? c.danger : c.line
-  return <View style={[s.card, { backgroundColor: tone === 'warn' ? c.warnSoft : tone === 'accent' ? c.accentSoft : c.card, borderColor: border }, style]}>{children}</View>
+  const stripe = tone === 'accent' ? c.accent : tone === 'warn' ? c.warn : tone === 'danger' ? c.danger : null
+  const bg = tone === 'warn' ? c.warnSoft : tone === 'accent' ? c.accentSoft : tone === 'danger' ? c.popSoft : c.card
+  return <View style={[s.card, { backgroundColor: bg, borderColor: c.line, shadowColor: c.accent }, stripe && { borderLeftWidth: 5, borderLeftColor: stripe }, style]}>{children}</View>
 }
 
 export function Btn({ title, onPress, kind = 'solid', disabled, busy, small }: { title: string; onPress: () => void; kind?: 'solid' | 'ghost' | 'danger' | 'accent'; disabled?: boolean; busy?: boolean; small?: boolean }) {
   const c = useColors()
-  const bg = kind === 'solid' ? c.ink : kind === 'accent' ? c.accent : 'transparent'
-  const fg = kind === 'solid' ? c.bg : kind === 'accent' ? '#ffffff' : kind === 'danger' ? c.danger : c.ink
+  const bg = kind === 'solid' ? c.accent : kind === 'accent' ? c.pop : 'transparent'
+  const fg = kind === 'solid' || kind === 'accent' ? '#ffffff' : kind === 'danger' ? c.danger : c.accent
   const off = disabled || busy
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!off }} disabled={off} onPress={onPress}
-      style={({ pressed }) => [s.btn, small && s.btnSmall, { backgroundColor: bg, borderColor: kind === 'ghost' ? c.line : kind === 'danger' ? c.danger : bg, opacity: off ? 0.45 : pressed ? 0.75 : 1 }]}>
+      style={({ pressed }) => [s.btn, small && s.btnSmall, { backgroundColor: bg, borderColor: kind === 'ghost' ? c.accent : kind === 'danger' ? c.danger : bg, opacity: off ? 0.45 : pressed ? 0.75 : 1 }]}>
       {busy && <ActivityIndicator size="small" color={fg} />}
       <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 13 : 15 }}>{title}</Text>
     </Pressable>
@@ -92,15 +101,15 @@ export function Chip({ label, on, onPress, disabled }: { label: string; on: bool
   const c = useColors()
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: on, disabled }} disabled={disabled} onPress={onPress}
-      style={[s.chip, { backgroundColor: on ? c.ink : c.card, borderColor: on ? c.ink : c.line, opacity: disabled ? 0.5 : 1 }]}>
-      <Text style={{ color: on ? c.bg : c.ink, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+      style={[s.chip, { backgroundColor: on ? c.accent : c.card, borderColor: on ? c.accent : c.line, opacity: disabled ? 0.5 : 1 }]}>
+      <Text style={{ color: on ? '#ffffff' : c.ink, fontWeight: '600', fontSize: 13 }}>{label}</Text>
     </Pressable>
   )
 }
 
 export function Tag({ label, tone }: { label: string; tone?: 'accent' | 'warn' | 'danger' | 'ink' }) {
   const c = useColors()
-  const [bg, fg] = tone === 'accent' ? [c.accentSoft, c.accent] : tone === 'warn' ? [c.warnSoft, c.warn] : tone === 'danger' ? [c.warnSoft, c.danger] : tone === 'ink' ? [c.ink, c.bg] : [c.bg, c.muted]
+  const [bg, fg] = tone === 'accent' ? [c.accentSoft, c.accent] : tone === 'warn' ? [c.warnSoft, c.warn] : tone === 'danger' ? [c.popSoft, c.danger] : tone === 'ink' ? [c.infoSoft, c.info] : [c.accentSoft, c.accent]
   return <Text style={[s.tag, { backgroundColor: bg, color: fg }]}>{label}</Text>
 }
 
@@ -115,10 +124,11 @@ export function ErrorText({ children }: { children: ReactNode }) {
 
 export function Score({ score, big }: { score: number; big?: boolean }) {
   const c = useColors()
-  const tone = score >= 75 ? c.accent : score >= 50 ? c.warn : c.muted
+  const tone = score >= 75 ? c.good : score >= 50 ? c.warn : c.muted
+  const soft = score >= 75 ? c.goodSoft : score >= 50 ? c.warnSoft : c.bg
   const size = big ? 64 : 46
   return (
-    <View accessibilityLabel={`Match ${score}`} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+    <View accessibilityLabel={`Match ${score}`} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 3, borderColor: tone, backgroundColor: soft, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: tone, fontWeight: '800', fontSize: big ? 22 : 16, lineHeight: big ? 24 : 18 }}>{score}</Text>
       <Text style={{ color: tone, fontSize: 8, fontWeight: '700', letterSpacing: 0.8 }}>MATCH</Text>
     </View>
@@ -128,8 +138,8 @@ export function Score({ score, big }: { score: number; big?: boolean }) {
 export function Bar({ percent }: { percent: number }) {
   const c = useColors()
   return (
-    <View style={{ height: 6, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
-      <View style={{ width: `${percent}%`, height: 6, backgroundColor: c.accent }} />
+    <View style={{ height: 6, borderRadius: 3, backgroundColor: c.accentSoft, overflow: 'hidden' }}>
+      <View style={{ width: `${percent}%`, height: 6, backgroundColor: percent >= 100 ? c.good : c.accent, borderRightWidth: percent > 0 && percent < 100 ? 6 : 0, borderRightColor: c.pop }} />
     </View>
   )
 }
@@ -150,12 +160,12 @@ const s = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 4 },
   title: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, lineHeight: 36 },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  card: { borderWidth: 1, borderRadius: 14, padding: space, gap: 10 },
-  btn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 18 },
+  card: { borderWidth: 1, borderRadius: 18, padding: space, gap: 10, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  btn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18 },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 12 },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+  input: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
   chip: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
-  tag: { fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' },
+  tag: { fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   footer: { flexDirection: 'row', gap: 10, alignItems: 'center', borderTopWidth: 1, paddingHorizontal: space, paddingTop: 12 },
 })
 
