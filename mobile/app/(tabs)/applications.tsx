@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { api, msg, STATUS, useSession, type Application, type ApplicationStatus } from '../../src/lib'
+import { api, msg, STATUS, stageIsTerminal, useSession, type Application, type ApplicationStatus } from '../../src/lib'
 import { Card, ErrorText, Label, Locked, Row, Screen, T, Tag, Title, useColors } from '../../src/ui'
+
+const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase()
+const followUpDue = (a: Application) => !!a.followUpAt && new Date(a.followUpAt) <= new Date() && !!a.stage && !stageIsTerminal(a.stage)
 
 export default function Applications() {
   const { gaps } = useSession()
@@ -37,7 +40,9 @@ export default function Applications() {
                       <T bold>{a.jobTitle ?? 'Job removed'}</T>
                       <T small muted>{a.company} · {new Date(a.updatedAt).toLocaleDateString()}{a.auto ? ' · auto' : ''}</T>
                     </View>
-                    {a.missing > 0 && <Tag label={`${a.missing} to answer`} tone="warn" />}
+                    {followUpDue(a) && <T>⏰</T>}
+                    {a.stage ? <Tag label={titleCase(a.stage)} tone={a.stage === 'OFFER' || a.stage === 'ACCEPTED' ? 'accent' : a.stage === 'REJECTED' ? 'danger' : 'ink'} />
+                      : a.missing > 0 ? <Tag label={`${a.missing} to answer`} tone="warn" /> : null}
                   </Row>
                 </Pressable>
               ))}
