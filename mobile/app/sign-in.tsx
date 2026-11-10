@@ -12,6 +12,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<{ text: string; fields?: Record<string, string> } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
   const [custom, setCustom] = useState(serverAddress() !== DEFAULT_SERVER)
 
   async function submit() {
@@ -28,6 +29,18 @@ export default function SignIn() {
       setError({ text: msg(e), fields: e instanceof ApiError ? e.fields : undefined })
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function forgot() {
+    setError(null)
+    setNotice('')
+    if (!email.trim()) return setError({ text: 'Type your email first, then tap "Forgot password?" again.' })
+    try {
+      await setServer(custom ? server : DEFAULT_SERVER)
+      setNotice((await api.forgotPassword(email.trim())).message)
+    } catch (e) {
+      setError({ text: msg(e) })
     }
   }
 
@@ -54,6 +67,8 @@ export default function SignIn() {
       <Input label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" error={error?.fields?.email} />
       <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry maxLength={72}
         autoComplete={register ? 'new-password' : 'current-password'} hint={register ? 'At least 8 characters.' : undefined} error={error?.fields?.password} />
+      {!register && <T small muted onPress={forgot}>Forgot password?</T>}
+      {notice ? <T small>{notice}</T> : null}
       {error && !error.fields && <ErrorText>{error.text}</ErrorText>}
       <Btn title={register ? 'Create account' : 'Sign in'} onPress={submit} busy={busy} />
     </Screen>
