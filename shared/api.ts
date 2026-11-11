@@ -168,6 +168,7 @@ export function createApi(cfg: ApiConfig) {
   createApplication: (jobId: string) => request<Application>('POST', '/applications', { jobId }),
   saveAnswers: (id: string, answers: Record<string, string>) => request<Application>('PUT', `/applications/${id}/answers`, { answers }),
   deleteApplication: (id: string) => request<void>('DELETE', `/applications/${id}`),
+  markApplied: (id: string) => request<Application>('POST', `/applications/${id}/submitted`),
   setApplicationStage: (id: string, stage: Stage, note?: string, followUpInDays?: number | null) =>
     request<Application>('PATCH', `/applications/${id}/stage`, { stage, note, followUpInDays }),
   followUpEmail: (id: string) => request<FollowUpEmail>('POST', `/applications/${id}/follow-up-email`),

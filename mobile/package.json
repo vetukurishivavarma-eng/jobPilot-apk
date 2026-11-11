@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "expo": "57.0.32",
     "expo-clipboard": "57.0.2",
     "expo-constants": "57.0.23",

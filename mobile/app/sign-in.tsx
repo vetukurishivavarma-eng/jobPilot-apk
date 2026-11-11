@@ -46,11 +46,14 @@ export default function SignIn() {
 
   return (
     <Screen>
-      <View style={{ marginTop: 24, marginBottom: 8, gap: 12 }}>
-        <Image source={require('../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 18 }} accessibilityLabel="JobPilot logo" />
-        <Title kicker="JobPilot">{register ? 'Create your account' : 'Welcome back'}</Title>
-        <T muted>Your AI job agent: it finds jobs that fit your resume, prepares every application and asks you only what it can't answer.</T>
+      <View style={{ marginTop: 40, marginBottom: 20, alignItems: 'center', gap: 10 }}>
+        <Image source={require('../assets/icon.png')} style={{ width: 96, height: 96, borderRadius: 24 }} accessibilityLabel="JobPilot logo" />
+        <T bold style={{ fontSize: 30, letterSpacing: 0.3 }}>JobPilot</T>
+        <T muted style={{ textAlign: 'center', paddingHorizontal: 12 }}>
+          Your AI job agent — it finds jobs that fit your resume, prepares every application, and asks only what it can't answer.
+        </T>
       </View>
+      <Title>{register ? 'Create your account' : 'Welcome back'}</Title>
       <Row>
         <Chip label="Sign in" on={!register} onPress={() => setRegister(false)} />
         <Chip label="Create account" on={register} onPress={() => setRegister(true)} />

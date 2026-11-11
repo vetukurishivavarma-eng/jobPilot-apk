@@ -28,6 +28,7 @@ export default function ApplicationScreen() {
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [applying, setApplying] = useState(false)
 
   useEffect(() => { api.getApplication(id).then(setA).catch(e => setError(msg(e))) }, [id])
   if (!a) return error ? <Screen header><ErrorText>{error}</ErrorText></Screen> : <Loading />
@@ -71,8 +72,14 @@ export default function ApplicationScreen() {
       <ErrorText>{error}</ErrorText>
       {a.error && <Card tone="danger"><T small>{a.error}</T></Card>}
       {a.status === 'SUBMITTED' && <Tracker a={a} onChange={setA} />}
-      {a.status === 'READY' && !dirty && (
-        <Card tone="accent"><T small>Every required answer is in. The JobPilot extension in your PC’s Chrome fills this form on its next run (auto mode), or press Open and fill on the website.</T></Card>
+      {(a.status === 'READY' || a.status === 'NEEDS_INPUT') && a.applyUrl && (
+        <Card tone="accent">
+          <T bold>Ready to apply</T>
+          <T small muted>Open the form, copy your prepared answers from below, and submit on the site. (Auto-fill + submit runs only from the JobPilot extension on a PC.)</T>
+          <Btn kind="accent" title="Open application form" onPress={() => WebBrowser.openBrowserAsync(a.applyUrl!)} />
+          <Btn kind="ghost" small title="I’ve applied — track it" busy={applying}
+            onPress={async () => { setApplying(true); try { setA(await api.markApplied(a!.id)) } catch (e) { setError(msg(e)) } finally { setApplying(false) } }} />
+        </Card>
       )}
 
       {todo.length > 0 && (
