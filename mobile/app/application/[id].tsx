@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Alert, View } from 'react-native'
+import { dialog } from '../../src/dialog'
+import { View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
@@ -46,7 +47,7 @@ export default function ApplicationScreen() {
     try { setA(await api.saveAnswers(a!.id, draft)); setDraft({}) } catch (e) { setError(msg(e)) } finally { setSaving(false) }
   }
   function remove() {
-    Alert.alert('Delete this application draft?', 'Answers you gave stay remembered.', [
+    dialog('Delete this application draft?', 'Answers you gave stay remembered.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => api.deleteApplication(a!.id).then(() => router.back()).catch(e => setError(msg(e))) },
     ])

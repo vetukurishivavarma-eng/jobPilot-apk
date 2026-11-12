@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Image, View } from 'react-native'
+import { View } from 'react-native'
 import { api, ApiError, DEFAULT_SERVER, msg, serverAddress, setServer, setToken, useSession } from '../src/lib'
-import { Btn, Chip, ErrorText, Input, Row, Screen, T, Title } from '../src/ui'
+import { AnimatedLogo, Btn, Chip, ErrorText, Input, Row, Screen, T, Title } from '../src/ui'
 
 export default function SignIn() {
   const { setUser } = useSession()
@@ -47,7 +47,7 @@ export default function SignIn() {
   return (
     <Screen>
       <View style={{ marginTop: 40, marginBottom: 20, alignItems: 'center', gap: 10 }}>
-        <Image source={require('../assets/icon.png')} style={{ width: 96, height: 96, borderRadius: 24 }} accessibilityLabel="JobPilot logo" />
+        <AnimatedLogo size={96} />
         <T bold style={{ fontSize: 30, letterSpacing: 0.3 }}>JobPilot</T>
         <T muted style={{ textAlign: 'center', paddingHorizontal: 12 }}>
           Your AI job agent — it finds jobs that fit your resume, prepares every application, and asks only what it can't answer.

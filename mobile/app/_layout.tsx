@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, AppState, KeyboardAvoidingView } from 'react-native'
+import { dialog } from '../src/dialog'
+import { AppState, KeyboardAvoidingView } from 'react-native'
 import { router, Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as Clipboard from 'expo-clipboard'
@@ -7,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { api, ApiError, auth, loadStored, looksLikeJob, msg, profileGaps, SessionCtx, setToken, type Gaps, type User } from '../src/lib'
 import { Loading, useColors } from '../src/ui'
 import { useAutoUpdate } from '../src/update'
+import { DialogHost } from '../src/dialog'
 
 export default function Root() {
   const c = useColors()
@@ -58,6 +60,7 @@ export default function Root() {
             </Stack.Protected>
           </Stack>
         </KeyboardAvoidingView>
+        <DialogHost />
       </SessionCtx.Provider>
     </SafeAreaProvider>
   )
@@ -72,7 +75,7 @@ function useClipboardJobs(signedIn: boolean, unlocked: boolean) {
       const text = (await Clipboard.getStringAsync().catch(() => '')).trim()
       if (!looksLikeJob(text) || offered.current.has(text)) return
       offered.current.add(text)
-      Alert.alert('Add this job?', text, [
+      dialog('Add this job?', text, [
         { text: 'Not now', style: 'cancel' },
         { text: 'Add', onPress: () => add(text) },
       ])
@@ -80,13 +83,13 @@ function useClipboardJobs(signedIn: boolean, unlocked: boolean) {
     async function add(url: string) {
       try {
         const j = await api.importJob(url)
-        Alert.alert('Added', `${j.title} at ${j.company}`, unlocked
+        dialog('Added', `${j.title} at ${j.company}`, unlocked
           ? [{ text: 'OK' }, { text: 'Open', onPress: () => router.push(`/job/${j.id}`) }]
           : [{ text: 'OK' }])
       } catch (e) {
         // the site blocks reading (LinkedIn, Naukri): let the user paste the description instead
         if (e instanceof ApiError && e.status === 422) router.push({ pathname: '/add-job', params: { url } })
-        else Alert.alert("Couldn't add it", msg(e))
+        else dialog("Couldn't add it", msg(e))
       }
     }
     check()

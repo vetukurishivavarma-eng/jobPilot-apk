@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
-import { Alert, Pressable, View } from 'react-native'
+import { dialog } from '../../src/dialog'
+import { Pressable, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import { api, ApiError, msg, serverAddress, useSession, type Billing, type InterviewSummary, type Job } from '../../src/lib'
@@ -39,7 +40,7 @@ export default function Interviews() {
     } finally { setBusy(false) }
   }
   function remove(s: InterviewSummary) {
-    Alert.alert('Delete this session?', s.title, [
+    dialog('Delete this session?', s.title, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => api.deleteInterview(s.id).then(() => setHistory(h => h && h.filter(x => x.id !== s.id))).catch(e => setError(msg(e))) },
     ])

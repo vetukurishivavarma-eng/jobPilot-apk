@@ -2,7 +2,8 @@
 // with the .apk attached, from the GitHub app on a phone is fine) and every installed copy offers it on next open.
 // Updates install over the old app only if signed with the same key (this PC's release build config).
 import { useEffect, useRef } from 'react'
-import { Alert, AppState, Platform, ToastAndroid } from 'react-native'
+import { dialog } from './dialog'
+import { AppState, Platform, ToastAndroid } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as IntentLauncher from 'expo-intent-launcher'
@@ -52,10 +53,10 @@ export function useAutoUpdate() {
         if (!apk || !newer(r.tag_name, current)) return
         asking.current = true
         const notes = (r.body ?? '').split('\n').map(l => l.trim()).filter(l => l.startsWith('-')).slice(0, 4).join('\n')
-        Alert.alert(`Update available: ${r.tag_name}`, `You have ${current}.${notes ? `\n\n${notes}` : ''}`, [
+        dialog(`Update available: ${r.tag_name}`, `You have ${current}.${notes ? `\n\n${notes}` : ''}`, [
           { text: 'Later', style: 'cancel', onPress: () => { asking.current = false } },
           { text: 'Update', onPress: () => install(apk.browser_download_url, r.tag_name)
-              .catch(e => Alert.alert('Update failed', String(e?.message ?? e)))
+              .catch(e => dialog('Update failed', String(e?.message ?? e)))
               .finally(() => { asking.current = false }) },
         ])
       } catch { /* offline: try again next time */ }

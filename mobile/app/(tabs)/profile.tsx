@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, Switch, View } from 'react-native'
+import { dialog } from '../../src/dialog'
+import { Pressable, Switch, View } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import { api, ApiError, msg, serverAddress, useSession, type Profile, type Resume } from '../../src/lib'
 import { Bar, Btn, Card, ErrorText, Footer, Input, Label, Loading, Row, Screen, T, Tag, Title, useColors } from '../../src/ui'
@@ -89,7 +90,7 @@ export default function ProfileScreen() {
   }
 
   function signOut() {
-    Alert.alert('Sign out?', undefined, [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => setUser(null) }])
+    dialog('Sign out?', undefined, [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => setUser(null) }])
   }
 
   return (

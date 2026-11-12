@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View, type TextInputProps, type ViewStyle } from 'react-native'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { ActivityIndicator, Animated, Easing, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View, type TextInputProps, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 
@@ -146,7 +146,37 @@ export function Bar({ percent }: { percent: number }) {
 
 export function Loading() {
   const c = useColors()
-  return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}><ActivityIndicator color={c.accent} /></View>
+  return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}><AnimatedLogo size={84} /></View>
+}
+
+/** The paper-plane logo: springs in, then floats with a soft pulsing glow (built-in Animated, native driver). */
+export function AnimatedLogo({ size = 96 }: { size?: number }) {
+  const c = useColors()
+  const enter = useRef(new Animated.Value(0)).current
+  const loop = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    Animated.spring(enter, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }).start()
+    const a = Animated.loop(Animated.sequence([
+      Animated.timing(loop, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(loop, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]))
+    a.start()
+    return () => a.stop()
+  }, [enter, loop])
+  return (
+    <View style={{ width: size * 1.5, height: size * 1.5, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 3, backgroundColor: c.pop,
+        opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
+        transform: [{ scale: loop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }] }} />
+      <Animated.Image source={require('../assets/icon.png')} accessibilityLabel="JobPilot logo"
+        style={{ width: size, height: size, borderRadius: size / 4, opacity: enter,
+          transform: [
+            { scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) },
+            { translateY: loop.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.07] }) },
+            { rotate: loop.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) },
+          ] }} />
+    </View>
+  )
 }
 
 /** Sticky bar at the bottom of a screen (save / delete). */
