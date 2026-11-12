@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { View } from 'react-native'
+import { Linking, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
-import { ago, api, msg, type Job, type JobStatus } from '../../src/lib'
+import * as Clipboard from 'expo-clipboard'
+import { ago, api, msg, type Job, type JobStatus, type Outreach } from '../../src/lib'
 import { Btn, Card, ErrorText, Label, Loading, Row, Score, Screen, T, Tag, useColors } from '../../src/ui'
 
 const LEVEL: Record<string, string> = { INTERN: 'Internship', ENTRY: 'Entry level', MID: 'Mid level', SENIOR: 'Senior', LEAD: 'Lead / staff', MANAGER: 'Manager' }
@@ -75,6 +76,7 @@ export default function JobScreen() {
         <View style={{ flex: 1 }}><Btn kind="ghost" title="Tailor resume" onPress={() => router.push(`/tailor/${j.id}`)} /></View>
       </Row>
       <Btn kind="ghost" title="Practice interview for this job" disabled={preparing} onPress={practice} />
+      <OutreachCard jobId={j.id} />
       <Row>
         <View style={{ flex: 1 }}>{j.status === 'SAVED'
           ? <Btn kind="ghost" title="Saved ✓" onPress={() => setStatus('NEW')} />
@@ -88,5 +90,41 @@ export default function JobScreen() {
       <T selectable>{j.description || 'No description.'}</T>
       <T small muted>Requirements are read from the posting automatically and may miss things. Check the original before applying.</T>
     </Screen>
+  )
+}
+
+/** Draft-only recruiter outreach: LinkedIn note + email. The user finds the recruiter and sends it. */
+function OutreachCard({ jobId }: { jobId: string }) {
+  const [d, setD] = useState<Outreach | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+  async function draft() {
+    setBusy(true); setError(null); setCopied(null)
+    try { setD(await api.outreach(jobId)) } catch (e) { setError(msg(e)) } finally { setBusy(false) }
+  }
+  const copy = (what: string, text: string) => { Clipboard.setStringAsync(text); setCopied(what) }
+  return (
+    <>
+      <ErrorText>{error}</ErrorText>
+      <Btn kind="ghost" title={busy ? 'Writing…' : d ? 'Redraft recruiter message' : 'Message the recruiter'} busy={busy} onPress={draft} />
+      {d && (
+        <Card>
+          {d.source === 'TEMPLATE' && <T small muted>Template — AI was unavailable.</T>}
+          <Label>LinkedIn note</Label>
+          <T selectable>{d.dm}</T>
+          <Btn kind="ghost" small title={copied === 'dm' ? 'Copied' : 'Copy note'} onPress={() => copy('dm', d.dm)} />
+          <Label>Email</Label>
+          <T small bold>Subject: <T small>{d.subject}</T></T>
+          <T selectable>{d.body}</T>
+          <Row>
+            <View style={{ flex: 1 }}><Btn kind="ghost" small title={copied === 'email' ? 'Copied' : 'Copy email'} onPress={() => copy('email', `Subject: ${d.subject}
+
+${d.body}`)} /></View>
+            <View style={{ flex: 1 }}><Btn kind="ghost" small title="Email app" onPress={() => Linking.openURL(`mailto:?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`)} /></View>
+          </Row>
+        </Card>
+      )}
+    </>
   )
 }
