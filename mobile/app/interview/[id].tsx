@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { PermissionsAndroid, Pressable, View } from 'react-native'
+import { WebView } from 'react-native-webview'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { api, msg, type InterviewReport, type InterviewSession } from '../../src/lib'
+import { api, DEFAULT_SERVER, msg, type InterviewReport, type InterviewSession } from '../../src/lib'
 import { Btn, Card, ErrorText, Input, Label, Loading, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
 const TYPE = { BEHAVIOURAL: 'Behavioural', TECHNICAL: 'Technical', ROLE: 'Role', INTRO: 'Opening', FOLLOW_UP: 'Follow-up' } as const
@@ -122,6 +123,7 @@ function LiveInterview({ s, onChange }: { s: InterviewSession; onChange: (s: Int
         <Btn kind="accent" title={busy ? (last ? 'Writing your report…' : 'Interviewer is thinking…') : last ? 'Finish interview' : 'Answer'}
           busy={busy} disabled={!draft.trim()} onPress={submit} />
       </Card>
+      <EyeContact />
       <T small muted>Answer each question once, as you would in the room. Feedback comes in the report at the end.</T>
     </Screen>
   )
@@ -146,6 +148,55 @@ function Report({ r }: { r: InterviewReport }) {
       </View>}
       {r.strengths.length > 0 && <View style={{ gap: 4 }}><Label>Strengths</Label>{r.strengths.map((x, n) => <T key={n} small>• {x}</T>)}</View>}
       {r.focus.length > 0 && <View style={{ gap: 4 }}><Label>Practise next</Label>{r.focus.map((x, n) => <T key={n} small>• {x}</T>)}</View>}
+    </Card>
+  )
+}
+
+/**
+ * Eye-contact coach: the backend's eye.html (HTTPS, needed for the camera) runs face tracking inside the WebView,
+ * on the phone; video never leaves it. It posts "away" after 2s out of frame or head turned.
+ */
+function EyeContact() {
+  const c = useColors()
+  const [state, setState] = useState<'off' | 'loading' | 'on' | 'error'>('off')
+  const [away, setAway] = useState(false)
+  const [count, setCount] = useState(0)
+
+  async function start() {
+    const ok = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
+    setState(ok === PermissionsAndroid.RESULTS.GRANTED ? 'loading' : 'error')
+  }
+  function onMessage(m: string) {
+    if (m === 'ready') setState('on')
+    else if (m === 'error') setState('error')
+    else if (m === 'away') { setAway(true); setCount(n => n + 1) }
+    else if (m === 'back') setAway(false)
+  }
+
+  if (state === 'off') return (
+    <Card>
+      <Label>Eye contact</Label>
+      <T small muted>Optional. Warns you when you look away, like a real video interview. Video stays on your phone.</T>
+      <Btn kind="ghost" small title="Turn on camera" onPress={start} />
+    </Card>
+  )
+  if (state === 'error') return <Card><T small muted>Camera unavailable (permission denied, or no connection to load the face tracker).</T></Card>
+  return (
+    <Card tone={away ? 'warn' : undefined}>
+      <Row style={{ alignItems: 'flex-start' }}>
+        <View style={{ width: 96, height: 128, borderRadius: 10, overflow: 'hidden', backgroundColor: '#111' }}>
+          <WebView source={{ uri: `${DEFAULT_SERVER}/eye.html` }} onMessage={e => onMessage(e.nativeEvent.data)}
+            mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback javaScriptEnabled scrollEnabled={false}
+            style={{ backgroundColor: '#111' }} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Eye contact</Label>
+          {state === 'loading' && <T small muted>Starting the camera… (first time downloads the face tracker)</T>}
+          {away ? <T bold style={{ color: c.warn }}>Look at the camera. Interviewers notice when you look away.</T>
+            : state === 'on' && <T small>Good, keep looking at the camera.</T>}
+          {state === 'on' && <T small muted>Looked away {count} time{count === 1 ? '' : 's'}.</T>}
+        </View>
+      </Row>
     </Card>
   )
 }
