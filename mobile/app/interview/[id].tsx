@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams } from 'expo-router'
 import * as Speech from 'expo-speech'
 import * as Notifications from 'expo-notifications'
 import { usePreventScreenCapture } from 'expo-screen-capture'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { api, currentToken, DEFAULT_SERVER, msg, shareRecording, type InterviewReport, type InterviewSession } from '../../src/lib'
 import { Btn, Card, ErrorText, Input, Label, Loading, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
@@ -139,6 +140,7 @@ function indianMaleVoice(vs: Speech.Voice[]) {
  */
 function LiveInterview({ id, onFinished }: { id: string; onFinished: () => void }) {
   usePreventScreenCapture()
+  const insets = useSafeAreaInsets()
   const web = useRef<WebView>(null)
   const voice = useRef<string | undefined>(undefined)
   const [perm, setPerm] = useState<'asking' | 'ok' | 'denied'>('asking')
@@ -170,7 +172,7 @@ function LiveInterview({ id, onFinished }: { id: string; onFinished: () => void 
     </Screen>
   )
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f0d17' }}>
+    <View style={{ flex: 1, backgroundColor: '#0f0d17', paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <Stack.Screen options={{ headerShown: false }} />
       <WebView ref={web} source={{ uri: `${DEFAULT_SERVER}/live/${id}#t=${encodeURIComponent(currentToken() ?? '')}` }}
         onMessage={e => onMessage(e.nativeEvent.data)} mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback
