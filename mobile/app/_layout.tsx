@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { api, ApiError, auth, loadStored, looksLikeJob, msg, profileGaps, SessionCtx, setToken, type Gaps, type User } from '../src/lib'
 import { Loading, useColors } from '../src/ui'
+import { useAutoUpdate } from '../src/update'
 
 export default function Root() {
   const c = useColors()
@@ -30,6 +31,7 @@ export default function Root() {
   useEffect(() => { if (user) recheck() }, [user, recheck])
 
   useClipboardJobs(!!user, gaps?.missing.length === 0)
+  useAutoUpdate()
 
   if (loading) return <Loading />
   return (

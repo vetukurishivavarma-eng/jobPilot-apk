@@ -16,7 +16,7 @@ module.exports = {
   userInterfaceStyle: 'automatic',
   android: {
     package: 'com.jobpilot.app', versionCode: 10,
-    permissions: ['CAMERA', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'POST_NOTIFICATIONS'], // spoken live interview: camera, mic, 'recording ready'
+    permissions: ['CAMERA', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'POST_NOTIFICATIONS', 'REQUEST_INSTALL_PACKAGES'], // spoken live interview: camera, mic, 'recording ready'
     blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW'],
     adaptiveIcon: { foregroundImage: './assets/adaptive-fg.png', backgroundImage: './assets/adaptive-bg.png' },
   },
