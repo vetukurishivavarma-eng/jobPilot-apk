@@ -9,16 +9,16 @@ const allowHttp = config => withAndroidManifest(config, c => {
 module.exports = {
   name: 'JobPilot',
   slug: 'jobpilot',
-  version: '1.2.1',
+  version: '1.3.0',
   icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'jobpilot',
   userInterfaceStyle: 'automatic',
   android: {
-    package: 'com.jobpilot.app', versionCode: 8,
-    permissions: ['CAMERA'], // eye-contact coach in the live interview
+    package: 'com.jobpilot.app', versionCode: 9,
+    permissions: ['CAMERA', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'POST_NOTIFICATIONS'], // spoken live interview: camera, mic, 'recording ready'
     blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW'],
     adaptiveIcon: { foregroundImage: './assets/adaptive-fg.png', backgroundImage: './assets/adaptive-bg.png' },
   },
-  plugins: ['expo-router', 'expo-secure-store', 'expo-sharing', 'expo-web-browser', 'expo-status-bar', allowHttp],
+  plugins: ['expo-router', 'expo-secure-store', 'expo-sharing', 'expo-web-browser', 'expo-status-bar', 'expo-notifications', allowHttp],
 }

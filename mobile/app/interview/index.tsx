@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { api, msg, useSession, type InterviewSummary, type Job } from '../../src/lib'
+import * as WebBrowser from 'expo-web-browser'
+import { api, ApiError, msg, serverAddress, useSession, type Billing, type InterviewSummary, type Job } from '../../src/lib'
 import { Btn, Card, Chip, ErrorText, Input, Label, Locked, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
 /** Mock interview coach: start from a job or a typed role; past sessions below. */
@@ -13,6 +14,8 @@ export default function Interviews() {
   const [jobId, setJobId] = useState('')
   const [role, setRole] = useState('')
   const [live, setLive] = useState(true)
+  const [billing, setBilling] = useState<Billing | null>(null)
+  const [needsPlan, setNeedsPlan] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const unlocked = gaps?.missing.length === 0
@@ -21,6 +24,7 @@ export default function Interviews() {
     if (!unlocked) return
     api.listJobs({ status: 'ACTIVE', q: '', includeClosed: false, page: 0, sort: 'match' }).then(p => setJobs(p.items)).catch(e => setError(msg(e)))
     api.listInterviews().then(setHistory).catch(e => setError(msg(e)))
+    api.billing().then(setBilling).catch(() => {})
   }, [unlocked]))
 
   if (!unlocked) return <Locked gaps={gaps} what="Interview practice" />
@@ -29,7 +33,10 @@ export default function Interviews() {
     setBusy(true)
     setError(null)
     try { router.push(`/interview/${(await api.startInterview({ ...(jobId ? { jobId } : { role: role.trim() }), live })).id}`) }
-    catch (e) { setError(msg(e)) } finally { setBusy(false) }
+    catch (e) {
+      if (e instanceof ApiError && e.code === 'PAYMENT_REQUIRED') { setNeedsPlan(true); api.billing().then(setBilling).catch(() => {}) }
+      else setError(msg(e))
+    } finally { setBusy(false) }
   }
   function remove(s: InterviewSummary) {
     Alert.alert('Delete this session?', s.title, [
@@ -40,7 +47,10 @@ export default function Interviews() {
 
   return (
     <Screen header>
-      <T muted small>A live mock interview: it opens with "Tell me about yourself", then follows up on what you actually said, like a real interviewer. 8 questions, then a report on where you stand. Practice only, not for a real interview.</T>
+      <T muted small>A spoken mock interview with Arjun, your AI interviewer: he asks out loud, you answer out loud, and he follows up on what you actually said. 8 questions, then a report and a recording you can download for an hour. Practice only, not for a real interview.</T>
+      {billing?.enabled && (needsPlan || billing.credits === 0)
+        ? <Plans billing={billing} onPaid={b => { setBilling(b); if (b.credits > 0 && needsPlan) { setNeedsPlan(false); start() } }} />
+        : billing?.enabled ? <T small muted>{billing.credits} live interview{billing.credits === 1 ? '' : 's'} left.</T> : null}
       <Card>
         <Label>A job from your list</Label>
         <Row wrap gap={6}>
@@ -77,5 +87,39 @@ export default function Interviews() {
       )}
       {history && history.length > 0 && <T small muted>Long-press a session to delete it.</T>}
     </Screen>
+  )
+}
+
+/** Rs 10 first interview, Rs 49 each, or 4 in 7 days for Rs 200. Razorpay's own page takes the payment in the in-app browser. */
+function Plans({ billing, onPaid }: { billing: Billing; onPaid: (b: Billing) => void }) {
+  const c = useColors()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  async function buy(plan: Billing['plans'][number]['id']) {
+    setBusy(plan); setError(null)
+    try {
+      await WebBrowser.openBrowserAsync(serverAddress() + (await api.buy(plan)).payUrl) // resolves when the browser is closed
+      const b = await api.billing()
+      onPaid(b)
+      if (b.credits === 0) setError("We haven't received a payment yet. If you paid, wait a few seconds and open this screen again.")
+    } catch (e) { setError(msg(e)) } finally { setBusy(null) }
+  }
+  return (
+    <Card tone="accent">
+      <T bold style={{ fontSize: 17 }}>Get your live interview</T>
+      {billing.plans.map(p => (
+        <Pressable key={p.id} disabled={!!busy} onPress={() => buy(p.id)}
+          style={({ pressed }) => ({ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, backgroundColor: c.card, opacity: pressed || busy === p.id ? 0.6 : 1 })}>
+          <Row>
+            <T bold style={{ fontSize: 22 }}>₹{p.rupees}</T>
+            <View style={{ flex: 1 }}>
+              <T bold>{p.label}</T>
+              <T small muted>{p.interviews} interview{p.interviews === 1 ? '' : 's'}{p.days ? `, within ${p.days} days` : ''} · report + recording</T>
+            </View>
+          </Row>
+        </Pressable>
+      ))}
+      <ErrorText>{error}</ErrorText>
+    </Card>
   )
 }

@@ -33,6 +33,8 @@ export function setToken(t: string | null) {
   return t ? SecureStore.setItemAsync('token', t) : SecureStore.deleteItemAsync('token')
 }
 export const serverAddress = () => server
+/** The signed-in token, for handing to the live-interview WebView (in the URL fragment, never sent to the server). */
+export const currentToken = () => token
 
 export const msg = (e: unknown) =>
   e instanceof ApiError ? e.message : server === DEFAULT_SERVER
@@ -54,6 +56,18 @@ export async function sharePdf(docId: string, fallbackName: string) {
   f.create()
   f.write(new Uint8Array(await res.arrayBuffer()))
   await Sharing.shareAsync(f.uri, { mimeType: 'application/pdf', dialogTitle: name })
+}
+
+/** Downloads the interview recording (kept on the server for 1 hour) and opens the share sheet to save it. */
+export async function shareRecording(sessionId: string) {
+  const res = await api.recordingFile(sessionId)
+  const type = res.headers.get('Content-Type') ?? 'video/webm'
+  const name = `jobpilot-interview-${sessionId.slice(0, 8)}.${type.includes('mp4') ? 'mp4' : 'webm'}`
+  const f = new File(Paths.cache, name)
+  if (f.exists) f.delete()
+  f.create()
+  f.write(new Uint8Array(await res.arrayBuffer()))
+  await Sharing.shareAsync(f.uri, { mimeType: type, dialogTitle: name })
 }
 
 export function ago(iso: string) {

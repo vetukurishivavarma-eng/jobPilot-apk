@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PermissionsAndroid, Pressable, View } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { api, DEFAULT_SERVER, msg, type InterviewReport, type InterviewSession } from '../../src/lib'
+import * as Speech from 'expo-speech'
+import * as Notifications from 'expo-notifications'
+import { usePreventScreenCapture } from 'expo-screen-capture'
+import { api, currentToken, DEFAULT_SERVER, msg, shareRecording, type InterviewReport, type InterviewSession } from '../../src/lib'
 import { Btn, Card, ErrorText, Input, Label, Loading, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
-const TYPE = { BEHAVIOURAL: 'Behavioural', TECHNICAL: 'Technical', ROLE: 'Role', INTRO: 'Opening', FOLLOW_UP: 'Follow-up' } as const
+const TYPE = { BEHAVIOURAL: 'Behavioural', TECHNICAL: 'Technical', ROLE: 'Role', INTRO: 'Opening', FOLLOW_UP: 'Follow-up', PROBE: 'Check-in' } as const
 const RUBRIC = [['relevance', 'Relevance'], ['specificity', 'Specificity'], ['technical', 'Technical'], ['concision', 'Concision']] as const
 
 /** One question at a time; drafts survive a failed scoring (e.g. 503 AI_UNAVAILABLE) so the user can retry. */
@@ -23,7 +26,8 @@ export default function InterviewSessionScreen() {
   }, [id])
   if (!s) return error ? <Screen header><ErrorText>{error}</ErrorText></Screen> : <Loading />
 
-  if (s.mode === 'LIVE' && !s.report) return <LiveInterview s={s} onChange={setS} />
+  if (s.mode === 'LIVE' && !s.report && !s.ended && !s.done)
+    return <LiveInterview id={s.id} onFinished={() => api.getInterview(s.id).then(setS).catch(e => setError(msg(e)))} />
 
   const item = s.items[i]
   const draft = drafts[i] ?? item.answer ?? ''
@@ -40,6 +44,8 @@ export default function InterviewSessionScreen() {
     <Screen header>
       <Stack.Screen options={{ title: s.title }} />
       {s.source === 'TEMPLATE' && <T small muted>Standard questions (the local AI wasn't available to write ones for this job).</T>}
+      {s.recordingExpiresAt && <Recording s={s} />}
+      {s.mode === 'LIVE' && s.done && !s.report && <RetryReport s={s} onChange={setS} />}
       {s.report && <Report r={s.report} />}
       {s.report && <Label>Question by question</Label>}
       <Row wrap gap={6}>
@@ -92,43 +98,6 @@ export default function InterviewSessionScreen() {
   )
 }
 
-/** Live mode: one question at a time, no feedback until the report (like a real interview). */
-function LiveInterview({ s, onChange }: { s: InterviewSession; onChange: (s: InterviewSession) => void }) {
-  const c = useColors()
-  const i = s.items.length - 1
-  const item = s.items[i]
-  const last = i + 1 >= 8
-  const [draft, setDraft] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function submit() {
-    setBusy(true); setError(null)
-    try { onChange(await api.answerInterview(s.id, i, draft.trim())); setDraft('') } catch (e) { setError(msg(e)) } finally { setBusy(false) }
-  }
-
-  return (
-    <Screen header>
-      <Stack.Screen options={{ title: s.title }} />
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
-        <View style={{ height: 6, width: `${(i / 8) * 100}%`, backgroundColor: c.pop }} />
-      </View>
-      <Card>
-        <Label>{TYPE[item.type]} · question {i + 1} of 8</Label>
-        <T bold style={{ fontSize: 20, lineHeight: 28 }}>{item.question}</T>
-        <Input label="Your answer" multiline maxLength={5000} value={draft} style={{ minHeight: 180 }}
-          placeholder="Tap the mic on your keyboard to speak, or type. Be specific: what you did, why, what happened."
-          onChangeText={setDraft} />
-        <ErrorText>{error}</ErrorText>
-        <Btn kind="accent" title={busy ? (last ? 'Writing your report…' : 'Interviewer is thinking…') : last ? 'Finish interview' : 'Answer'}
-          busy={busy} disabled={!draft.trim()} onPress={submit} />
-      </Card>
-      <EyeContact />
-      <T small muted>Answer each question once, as you would in the room. Feedback comes in the report at the end.</T>
-    </Screen>
-  )
-}
-
 function Report({ r }: { r: InterviewReport }) {
   const c = useColors()
   return (
@@ -152,51 +121,95 @@ function Report({ r }: { r: InterviewReport }) {
   )
 }
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
+})
+
+/** Google's Indian-English male voices first ("ene"/"enc"/"end"), then any en-IN voice; the device default otherwise. */
+function indianMaleVoice(vs: Speech.Voice[]) {
+  const en = vs.filter(v => v.language.replace('_', '-').toLowerCase() === 'en-in')
+  return (['en-in-x-ene', 'en-in-x-enc', 'en-in-x-end'].map(k => en.find(v => v.identifier.toLowerCase().startsWith(k))).find(Boolean)
+    ?? en.find(v => /male/i.test(v.name) && !/female/i.test(v.name)) ?? en[0])?.identifier
+}
+
 /**
- * Eye-contact coach: the backend's eye.html (HTTPS, needed for the camera) runs face tracking inside the WebView,
- * on the phone; video never leaves it. It posts "away" after 2s out of frame or head turned.
+ * The spoken interview: the website's /live page (camera, mic, recording, on-device face and phone detection) in a
+ * WebView. The app adds the interviewer's voice, the "recording ready" notification and FLAG_SECURE, so screen
+ * recordings and screenshots of the interview come out black.
  */
-function EyeContact() {
-  const c = useColors()
-  const [state, setState] = useState<'off' | 'loading' | 'on' | 'error'>('off')
-  const [away, setAway] = useState(false)
-  const [count, setCount] = useState(0)
+function LiveInterview({ id, onFinished }: { id: string; onFinished: () => void }) {
+  usePreventScreenCapture()
+  const web = useRef<WebView>(null)
+  const voice = useRef<string | undefined>(undefined)
+  const [perm, setPerm] = useState<'asking' | 'ok' | 'denied'>('asking')
 
-  async function start() {
-    const ok = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
-    setState(ok === PermissionsAndroid.RESULTS.GRANTED ? 'loading' : 'error')
-  }
-  function onMessage(m: string) {
-    if (m === 'ready') setState('on')
-    else if (m === 'error') setState('error')
-    else if (m === 'away') { setAway(true); setCount(n => n + 1) }
-    else if (m === 'back') setAway(false)
+  useEffect(() => {
+    PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.CAMERA, PermissionsAndroid.PERMISSIONS.RECORD_AUDIO])
+      .then(r => setPerm(Object.values(r).every(x => x === PermissionsAndroid.RESULTS.GRANTED) ? 'ok' : 'denied'))
+    Speech.getAvailableVoicesAsync().then(vs => { voice.current = indianMaleVoice(vs) }).catch(() => {})
+    Notifications.setNotificationChannelAsync('default', { name: 'Interview', importance: Notifications.AndroidImportance.HIGH }).catch(() => {})
+    Notifications.requestPermissionsAsync().catch(() => {})
+    return () => { Speech.stop() }
+  }, [])
+
+  const spoken = () => web.current?.injectJavaScript("window.dispatchEvent(new Event('jp-spoken'));true;")
+  function onMessage(raw: string) {
+    let m: { type?: string; text?: string; title?: string; body?: string }
+    try { m = JSON.parse(raw) } catch { return }
+    if (m.type === 'speak' && m.text)
+      Speech.speak(m.text, { language: 'en-IN', voice: voice.current, pitch: 0.9, rate: 0.95, onDone: spoken, onStopped: spoken, onError: spoken })
+    else if (m.type === 'stopSpeaking') Speech.stop()
+    else if (m.type === 'notify') Notifications.scheduleNotificationAsync({ content: { title: m.title ?? 'JobPilot', body: m.body ?? '' }, trigger: null }).catch(() => {})
+    else if (m.type === 'finished') onFinished()
   }
 
-  if (state === 'off') return (
-    <Card>
-      <Label>Eye contact</Label>
-      <T small muted>Optional. Warns you when you look away, like a real video interview. Video stays on your phone.</T>
-      <Btn kind="ghost" small title="Turn on camera" onPress={start} />
+  if (perm !== 'ok') return (
+    <Screen header>
+      <Stack.Screen options={{ title: 'Interview' }} />
+      <Card><T>{perm === 'asking' ? 'Allow the camera and microphone to start the interview.' : 'The interview needs your camera and microphone. Allow them in Settings > Apps > JobPilot > Permissions, then open this interview again.'}</T></Card>
+    </Screen>
+  )
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0f0d17' }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <WebView ref={web} source={{ uri: `${DEFAULT_SERVER}/live/${id}#t=${encodeURIComponent(currentToken() ?? '')}` }}
+        onMessage={e => onMessage(e.nativeEvent.data)} mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback
+        javaScriptEnabled domStorageEnabled style={{ flex: 1, backgroundColor: '#0f0d17' }} />
+    </View>
+  )
+}
+
+/** The recording is kept on the server for an hour after the interview, then deleted. */
+function Recording({ s }: { s: InterviewSession }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const until = new Date(s.recordingExpiresAt!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  async function save() {
+    setBusy(true); setError(null)
+    try { await shareRecording(s.id) } catch (e) { setError(msg(e)) } finally { setBusy(false) }
+  }
+  return (
+    <Card tone="accent">
+      <T bold>Your recording is ready</T>
+      <T small muted>Deleted automatically at {until}. Save it to keep it.</T>
+      <Btn kind="accent" small title={busy ? 'Downloading…' : 'Download recording'} busy={busy} onPress={save} />
+      <ErrorText>{error}</ErrorText>
     </Card>
   )
-  if (state === 'error') return <Card><T small muted>Camera unavailable (permission denied, or no connection to load the face tracker).</T></Card>
+}
+
+function RetryReport({ s, onChange }: { s: InterviewSession; onChange: (s: InterviewSession) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function retry() {
+    setBusy(true); setError(null)
+    try { onChange(await api.interviewReport(s.id)) } catch (e) { setError(msg(e)) } finally { setBusy(false) }
+  }
   return (
-    <Card tone={away ? 'warn' : undefined}>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View style={{ width: 96, height: 128, borderRadius: 10, overflow: 'hidden', backgroundColor: '#111' }}>
-          <WebView source={{ uri: `${DEFAULT_SERVER}/eye.html` }} onMessage={e => onMessage(e.nativeEvent.data)}
-            mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback javaScriptEnabled scrollEnabled={false}
-            style={{ backgroundColor: '#111' }} />
-        </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Label>Eye contact</Label>
-          {state === 'loading' && <T small muted>Starting the camera… (first time downloads the face tracker)</T>}
-          {away ? <T bold style={{ color: c.warn }}>Look at the camera. Interviewers notice when you look away.</T>
-            : state === 'on' && <T small>Good, keep looking at the camera.</T>}
-          {state === 'on' && <T small muted>Looked away {count} time{count === 1 ? '' : 's'}.</T>}
-        </View>
-      </Row>
+    <Card>
+      <T>Your answers are saved, but the report couldn't be written.</T>
+      <Btn small title={busy ? 'Writing…' : 'Write my report'} busy={busy} onPress={retry} />
+      <ErrorText>{error}</ErrorText>
     </Card>
   )
 }
