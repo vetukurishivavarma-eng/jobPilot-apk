@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { api, msg, type InterviewSession } from '../../src/lib'
+import { api, msg, type InterviewReport, type InterviewSession } from '../../src/lib'
 import { Btn, Card, ErrorText, Input, Label, Loading, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
-const TYPE = { BEHAVIOURAL: 'Behavioural', TECHNICAL: 'Technical', ROLE: 'Role' } as const
+const TYPE = { BEHAVIOURAL: 'Behavioural', TECHNICAL: 'Technical', ROLE: 'Role', INTRO: 'Opening', FOLLOW_UP: 'Follow-up' } as const
 const RUBRIC = [['relevance', 'Relevance'], ['specificity', 'Specificity'], ['technical', 'Technical'], ['concision', 'Concision']] as const
 
 /** One question at a time; drafts survive a failed scoring (e.g. 503 AI_UNAVAILABLE) so the user can retry. */
@@ -22,6 +22,8 @@ export default function InterviewSessionScreen() {
   }, [id])
   if (!s) return error ? <Screen header><ErrorText>{error}</ErrorText></Screen> : <Loading />
 
+  if (s.mode === 'LIVE' && !s.report) return <LiveInterview s={s} onChange={setS} />
+
   const item = s.items[i]
   const draft = drafts[i] ?? item.answer ?? ''
   const fb = item.feedback
@@ -37,6 +39,8 @@ export default function InterviewSessionScreen() {
     <Screen header>
       <Stack.Screen options={{ title: s.title }} />
       {s.source === 'TEMPLATE' && <T small muted>Standard questions (the local AI wasn't available to write ones for this job).</T>}
+      {s.report && <Report r={s.report} />}
+      {s.report && <Label>Question by question</Label>}
       <Row wrap gap={6}>
         {s.items.map((q, n) => (
           <Pressable key={n} onPress={() => { setI(n); setError(null) }} accessibilityState={{ selected: n === i }}
@@ -50,14 +54,14 @@ export default function InterviewSessionScreen() {
       <Card>
         <Label>{TYPE[item.type]} · {i + 1} of {s.items.length}</Label>
         <T bold style={{ fontSize: 19, lineHeight: 26 }}>{item.question}</T>
-        <Input label="Your answer" multiline maxLength={5000} value={draft} style={{ minHeight: 160 }}
+        <Input label="Your answer" multiline maxLength={5000} value={draft} style={{ minHeight: 160 }} editable={s.mode !== 'LIVE'}
           placeholder="Answer as you would out loud. Behavioural: situation, task, action, result."
           onChangeText={v => setDrafts({ ...drafts, [i]: v })} />
         <ErrorText>{error}</ErrorText>
         <Row>
-          <View style={{ flex: 1 }}>
+          {s.mode !== 'LIVE' && <View style={{ flex: 1 }}>
             <Btn title={busy ? 'Scoring…' : item.answer ? 'Score again' : 'Get feedback'} busy={busy} disabled={!draft.trim() || draft === item.answer} onPress={submit} />
-          </View>
+          </View>}
           {i + 1 < s.items.length && <Btn kind="ghost" title="Next ›" onPress={() => { setI(i + 1); setError(null) }} />}
         </Row>
       </Card>
@@ -84,5 +88,64 @@ export default function InterviewSessionScreen() {
         </Card>
       )}
     </Screen>
+  )
+}
+
+/** Live mode: one question at a time, no feedback until the report (like a real interview). */
+function LiveInterview({ s, onChange }: { s: InterviewSession; onChange: (s: InterviewSession) => void }) {
+  const c = useColors()
+  const i = s.items.length - 1
+  const item = s.items[i]
+  const last = i + 1 >= 8
+  const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    setBusy(true); setError(null)
+    try { onChange(await api.answerInterview(s.id, i, draft.trim())); setDraft('') } catch (e) { setError(msg(e)) } finally { setBusy(false) }
+  }
+
+  return (
+    <Screen header>
+      <Stack.Screen options={{ title: s.title }} />
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
+        <View style={{ height: 6, width: `${(i / 8) * 100}%`, backgroundColor: c.pop }} />
+      </View>
+      <Card>
+        <Label>{TYPE[item.type]} · question {i + 1} of 8</Label>
+        <T bold style={{ fontSize: 20, lineHeight: 28 }}>{item.question}</T>
+        <Input label="Your answer" multiline maxLength={5000} value={draft} style={{ minHeight: 180 }}
+          placeholder="Tap the mic on your keyboard to speak, or type. Be specific: what you did, why, what happened."
+          onChangeText={setDraft} />
+        <ErrorText>{error}</ErrorText>
+        <Btn kind="accent" title={busy ? (last ? 'Writing your report…' : 'Interviewer is thinking…') : last ? 'Finish interview' : 'Answer'}
+          busy={busy} disabled={!draft.trim()} onPress={submit} />
+      </Card>
+      <T small muted>Answer each question once, as you would in the room. Feedback comes in the report at the end.</T>
+    </Screen>
+  )
+}
+
+function Report({ r }: { r: InterviewReport }) {
+  const c = useColors()
+  return (
+    <Card tone="accent">
+      <Row>
+        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.pop, alignItems: 'center', justifyContent: 'center' }}>
+          <T bold style={{ color: '#ffffff', fontSize: 22 }}>{r.readiness ?? '–'}%</T>
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <T bold style={{ fontSize: 18 }}>Interview readiness</T>
+          {r.verdict ? <T small>{r.verdict}</T> : <T small muted>From your scores (the AI wasn't available for a written review).</T>}
+        </View>
+      </Row>
+      {r.gaps.length > 0 && <View style={{ gap: 6 }}>
+        <Label>Behind the market standard</Label>
+        {r.gaps.map((g, n) => <Card key={n} tone="warn"><T small><T small bold>{g.area}</T>{g.detail ? ` — ${g.detail}` : ''}</T></Card>)}
+      </View>}
+      {r.strengths.length > 0 && <View style={{ gap: 4 }}><Label>Strengths</Label>{r.strengths.map((x, n) => <T key={n} small>• {x}</T>)}</View>}
+      {r.focus.length > 0 && <View style={{ gap: 4 }}><Label>Practise next</Label>{r.focus.map((x, n) => <T key={n} small>• {x}</T>)}</View>}
+    </Card>
   )
 }

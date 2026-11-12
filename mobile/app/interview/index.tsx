@@ -12,6 +12,7 @@ export default function Interviews() {
   const [history, setHistory] = useState<InterviewSummary[] | null>(null)
   const [jobId, setJobId] = useState('')
   const [role, setRole] = useState('')
+  const [live, setLive] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const unlocked = gaps?.missing.length === 0
@@ -27,7 +28,7 @@ export default function Interviews() {
   async function start() {
     setBusy(true)
     setError(null)
-    try { router.push(`/interview/${(await api.startInterview(jobId ? { jobId } : { role: role.trim() })).id}`) }
+    try { router.push(`/interview/${(await api.startInterview({ ...(jobId ? { jobId } : { role: role.trim() }), live })).id}`) }
     catch (e) { setError(msg(e)) } finally { setBusy(false) }
   }
   function remove(s: InterviewSummary) {
@@ -39,7 +40,7 @@ export default function Interviews() {
 
   return (
     <Screen header>
-      <T muted small>Six practice questions from the job and your profile. Type an answer, get a score and a stronger version built from your own facts. Practice only, not for a real interview.</T>
+      <T muted small>A live mock interview: it opens with "Tell me about yourself", then follows up on what you actually said, like a real interviewer. 8 questions, then a report on where you stand. Practice only, not for a real interview.</T>
       <Card>
         <Label>A job from your list</Label>
         <Row wrap gap={6}>
@@ -49,7 +50,11 @@ export default function Interviews() {
           {jobs.length === 0 && <T small muted>No jobs in your inbox yet.</T>}
         </Row>
         <Input label="Or a role" placeholder="Backend Engineer" maxLength={120} value={role} onChangeText={v => { setRole(v); if (v) setJobId('') }} />
-        <Btn kind="accent" title={busy ? 'Writing questions… (up to a minute)' : 'Start practice'} busy={busy} disabled={!jobId && !role.trim()} onPress={start} />
+        <Row wrap gap={6}>
+          <Chip label="Live interview" on={live} onPress={() => setLive(true)} />
+          <Chip label="Practice set (6 fixed)" on={!live} onPress={() => setLive(false)} />
+        </Row>
+        <Btn kind="accent" title={busy ? 'Starting…' : live ? 'Start interview' : 'Start practice'} busy={busy} disabled={!jobId && !role.trim()} onPress={start} />
         <ErrorText>{error}</ErrorText>
       </Card>
 
@@ -62,9 +67,9 @@ export default function Interviews() {
               <Row>
                 <View style={{ flex: 1 }}>
                   <T bold>{s.title}</T>
-                  <T small muted>{s.answered}/{s.total} answered · {new Date(s.createdAt).toLocaleDateString()}</T>
+                  <T small muted>{s.mode === 'LIVE' ? 'Interview' : 'Practice'} · {s.answered}/{s.total} answered · {new Date(s.createdAt).toLocaleDateString()}</T>
                 </View>
-                {s.averageScore != null && <Tag label={`avg ${s.averageScore}/5`} tone="accent" />}
+                {s.readiness != null ? <Tag label={`ready ${s.readiness}%`} tone="accent" /> : s.averageScore != null && <Tag label={`avg ${s.averageScore}/5`} tone="accent" />}
               </Row>
             </Pressable>
           ))}

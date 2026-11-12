@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, Pressable, RefreshControl, TextInput, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ago, api, msg, useSession, type DiscoveryProgress, type Job, type JobStatus, type SourceResult } from '../../src/lib'
+import { ago, api, bestBets, msg, useSession, type BestBet, type DiscoveryProgress, type Job, type JobStatus, type SourceResult } from '../../src/lib'
 import { Btn, Card, Chip, ErrorText, Locked, Row, Score, space, T, Title, useColors } from '../../src/ui'
 
 const LISTS = [['ACTIVE', 'Inbox'], ['SAVED', 'Saved'], ['DISMISSED', 'Dismissed'], ['ALL', 'All']] as const
@@ -21,6 +21,7 @@ export default function Jobs() {
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<DiscoveryProgress | null>(null)
   const [report, setReport] = useState<SourceResult[] | null>(null)
+  const [bets, setBets] = useState<BestBet[]>([])
   const running = !!progress?.running
 
   const load = useCallback(async (more = false) => {
@@ -36,6 +37,7 @@ export default function Jobs() {
 
   const unlocked = gaps?.missing.length === 0
   useFocusEffect(useCallback(() => { if (unlocked) load() }, [unlocked, load]))
+  useFocusEffect(useCallback(() => { if (unlocked) bestBets(api).then(setBets).catch(() => {}) }, [unlocked]))
   // a search keeps running on the server; pick it up again when the screen opens
   useEffect(() => { if (unlocked) api.discoveryStatus().then(p => { if (p.running) setProgress(p) }).catch(() => {}) }, [unlocked])
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function Jobs() {
           {report.filter(r => r.error).map((r, i) => <T key={i} small muted>{r.label}: {r.error}</T>)}
         </Card>
       )}
+      <BestBets bets={bets} />
       <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => setQuery(q.trim())} returnKeyType="search"
         placeholder="Search title or company" placeholderTextColor={c.muted}
         style={{ borderWidth: 1, borderColor: c.line, backgroundColor: c.card, color: c.ink, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 }} />
@@ -145,5 +148,29 @@ function JobRow({ j, onStatus }: { j: Job; onStatus: (s: JobStatus) => void }) {
         </Row>
       </Card>
     </Pressable>
+  )
+}
+
+/** Jobs you've mock-interviewed for, ranked by match + interview readiness. */
+function BestBets({ bets }: { bets: BestBet[] }) {
+  const c = useColors()
+  return (
+    <Card tone="accent">
+      <T bold style={{ fontSize: 17 }}>Best bets</T>
+      {bets.length === 0
+        ? <T small muted>Do a live mock interview for a job (job → Practice interview) and your strongest shots show up here, ranked by match + how you interviewed.</T>
+        : bets.map(b => (
+          <Pressable key={b.job.id} onPress={() => router.push(`/job/${b.job.id}`)} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Row>
+              <Score score={b.fit} />
+              <View style={{ flex: 1 }}>
+                <T bold>{b.job.title}</T>
+                <T small muted>{b.job.company} · match {b.job.match?.score ?? '–'} · interview {b.readiness}%</T>
+              </View>
+              <T style={{ color: c.muted }}>›</T>
+            </Row>
+          </Pressable>
+        ))}
+    </Card>
   )
 }

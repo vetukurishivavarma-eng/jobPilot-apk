@@ -28,7 +28,7 @@ export default function JobScreen() {
   async function practice() {
     setPreparing(true)
     setError(null)
-    try { router.push(`/interview/${(await api.startInterview({ jobId: j!.id })).id}`) } catch (e) { setError(msg(e)) } finally { setPreparing(false) }
+    try { router.push(`/interview/${(await api.startInterview({ jobId: j!.id, live: true })).id}`) } catch (e) { setError(msg(e)) } finally { setPreparing(false) }
   }
   async function setStatus(s: JobStatus) {
     try { await api.setJobStatus(j!.id, s); setJ({ ...j!, status: s }) } catch (e) { setError(msg(e)) }
@@ -75,7 +75,7 @@ export default function JobScreen() {
         {j.url && <View style={{ flex: 1 }}><Btn kind="ghost" title="Open posting" onPress={() => WebBrowser.openBrowserAsync(j.url!)} /></View>}
         <View style={{ flex: 1 }}><Btn kind="ghost" title="Tailor resume" onPress={() => router.push(`/tailor/${j.id}`)} /></View>
       </Row>
-      <Btn kind="ghost" title="Practice interview for this job" disabled={preparing} onPress={practice} />
+      <Btn kind="ghost" title="Mock interview for this job" disabled={preparing} onPress={practice} />
       <OutreachCard jobId={j.id} />
       <Row>
         <View style={{ flex: 1 }}>{j.status === 'SAVED'
