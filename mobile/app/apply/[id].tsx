@@ -61,12 +61,13 @@ export default function AutoApplyScreen() {
   }
 
   async function onMessage(e: WebViewMessageEvent) {
-    let m: { id: number; msg: { type: string; reason?: string } }
+    let m: { id: number; msg: { type: string; reason?: string; fields?: Parameters<typeof api.pageForm>[1] } }
     try { m = JSON.parse(e.nativeEvent.data) } catch { return }
     try {
       switch (m.msg.type) {
         case 'forPage': return reply(m.id, { data: await api.getApplication(id) })
         case 'resume': return reply(m.id, await resume())
+        case 'pageForm': return reply(m.id, { data: await api.pageForm(id, m.msg.fields ?? []) })
         case 'role': return reply(m.id, { auto: true, autoSubmit: submit === '1' })
         case 'needsYou': setNote(m.msg.reason ?? 'Please finish this form yourself.'); return reply(m.id, {})
         case 'submitted': {

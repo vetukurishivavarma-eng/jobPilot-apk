@@ -73,6 +73,7 @@ export default function ApplicationScreen() {
       </View>
       <ErrorText>{error}</ErrorText>
       {a.error && <Card tone="danger"><T small>{a.error}</T></Card>}
+      {a.fields.length === 0 && a.status !== 'SUBMITTED' && <T small muted>This site's questions are read when the form opens. Tap Auto-fill: anything JobPilot can't answer shows up here.</T>}
       {a.status === 'SUBMITTED' && <Tracker a={a} onChange={setA} />}
       {(a.status === 'READY' || a.status === 'NEEDS_INPUT') && a.applyUrl && (
         <Card tone="accent">
