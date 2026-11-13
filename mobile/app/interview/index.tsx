@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 import { dialog } from '../../src/dialog'
-import { Pressable, View } from 'react-native'
+import { Linking, Pressable, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
-import { api, ApiError, msg, PRO_PERKS, serverAddress, useSession, type Billing, type InterviewPack, type InterviewSummary, type Job } from '../../src/lib'
+import { api, ApiError, msg, PRO_PERKS, serverAddress, useSession, type Billing, type InterviewPack, type InterviewSummary, type Job, type UpiOrder } from '../../src/lib'
 import { Btn, Card, Chip, ErrorText, Input, Label, Locked, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
 /** Mock interview coach: start from a job or a typed role; past sessions below. */
@@ -109,8 +109,23 @@ function Plans({ billing, onPaid }: { billing: Billing; onPaid: (b: Billing) => 
   const c = useColors()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [upi, setUpi] = useState<UpiOrder | null>(null)
+  const [utr, setUtr] = useState('')
+  const [sent, setSent] = useState(false)
+  async function claim() {
+    setBusy('utr'); setError(null)
+    try { onPaid(await api.claimUpi(upi!.purchaseId, utr.trim())); setSent(true) } catch (e) { setError(msg(e)) } finally { setBusy(null) }
+  }
   async function buy(plan: Billing['plans'][number]['id']) {
-    setBusy(plan); setError(null)
+    setBusy(plan); setError(null); setSent(false); setUtr('')
+    if (billing.mode === 'UPI') {
+      try {
+        const o = await api.upiOrder(plan)
+        setUpi(o)
+        await Linking.openURL(o.upiUrl).catch(() => setError('No UPI app found. Install GPay, PhonePe or Paytm, or pay from the website by QR.'))
+      } catch (e) { setError(msg(e)) } finally { setBusy(null) }
+      return
+    }
     try {
       await WebBrowser.openBrowserAsync(serverAddress() + (await api.buy(plan)).payUrl) // resolves when the browser is closed
       const b = await api.billing()
@@ -134,6 +149,17 @@ function Plans({ billing, onPaid }: { billing: Billing; onPaid: (b: Billing) => 
           </Row>
         </Pressable>
       ))}
+      {upi && !sent && (
+        <View style={{ gap: 8, borderWidth: 1, borderColor: c.accent, borderRadius: 12, padding: 12, backgroundColor: c.card }}>
+          <T bold>Pay ₹{upi.rupees} by UPI · {upi.label}</T>
+          <T small muted>Your UPI app opens with the amount filled in. Keep the note "JobPilot {upi.ref}".</T>
+          <Btn kind="ghost" small title="Open UPI app again" onPress={() => Linking.openURL(upi.upiUrl).catch(() => {})} />
+          <Input label="Then enter the 12-digit UPI reference (UTR)" keyboardType="number-pad" maxLength={14} placeholder="412345678901" value={utr} onChangeText={setUtr} />
+          <Btn title="I've paid" busy={busy === 'utr'} disabled={utr.replace(/\s/g, '').length !== 12} onPress={claim} />
+        </View>
+      )}
+      {sent && <T small bold style={{ color: c.accent }}>Thanks! We'll confirm your payment within a few hours, then it unlocks automatically.</T>}
+      {(billing.pending ?? 0) > 0 && !sent && <T small muted>{billing.pending} payment{billing.pending === 1 ? '' : 's'} being checked. It unlocks as soon as it's confirmed.</T>}
       <ErrorText>{error}</ErrorText>
     </Card>
   )
