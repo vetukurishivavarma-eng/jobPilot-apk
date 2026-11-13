@@ -3,7 +3,7 @@ import { Linking, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
-import { ago, api, msg, type Job, type JobStatus, type Outreach } from '../../src/lib'
+import { agentSupport, ago, api, msg, type Job, type JobStatus, type Outreach } from '../../src/lib'
 import { Btn, Card, ErrorText, Label, Loading, Row, Score, Screen, T, Tag, useColors } from '../../src/ui'
 
 const LEVEL: Record<string, string> = { INTERN: 'Internship', ENTRY: 'Entry level', MID: 'Mid level', SENIOR: 'Senior', LEAD: 'Lead / staff', MANAGER: 'Manager' }
@@ -19,7 +19,9 @@ export default function JobScreen() {
   useEffect(() => { api.getJob(id).then(setJ).catch(e => setError(msg(e))) }, [id])
   if (!j) return error ? <Screen header><ErrorText>{error}</ErrorText></Screen> : <Loading />
 
-  const agentCan = (j.source === 'greenhouse' || j.source === 'lever') && !j.closedAt
+  const agent = agentSupport(j)
+  const agentCan = agent.can
+  const siteUrl = j.applyUrl ?? j.url
   async function apply() {
     setPreparing(true)
     setError(null)
@@ -70,6 +72,12 @@ export default function JobScreen() {
       <ErrorText>{error}</ErrorText>
       {agentCan && j.status !== 'DISMISSED' && (
         <Btn kind="accent" title={preparing ? 'Reading the form…' : 'Apply with agent'} busy={preparing} onPress={apply} />
+      )}
+      {!agentCan && !j.closedAt && siteUrl && j.status !== 'DISMISSED' && (
+        <View style={{ gap: 6 }}>
+          <Btn kind="accent" title="Apply on company site" onPress={() => WebBrowser.openBrowserAsync(siteUrl)} />
+          {agent.why && <T small muted>{agent.why}</T>}
+        </View>
       )}
       <Row>
         {j.url && <View style={{ flex: 1 }}><Btn kind="ghost" title="Open posting" onPress={() => WebBrowser.openBrowserAsync(j.url!)} /></View>}
