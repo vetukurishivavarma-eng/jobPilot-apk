@@ -79,6 +79,7 @@ export function ago(iso: string) {
 export function looksLikeJob(s: string) {
   const t = s.trim()
   if (!/^https?:\/\/\S+$/i.test(t)) return false
+  if (/github\.com|jobpilot/i.test(t)) return false // our own links ("jobPilot" contains "job")
   return /greenhouse|lever\.co|myworkdayjobs|workday|smartrecruiters|ashbyhq|workable|linkedin\.com\/jobs|naukri|indeed|instahyre|wellfound|careers?|jobs?|position|opening|vacanc|apply/i.test(t)
 }
 
