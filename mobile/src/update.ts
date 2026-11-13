@@ -2,7 +2,7 @@
 // with the .apk attached, from the GitHub app on a phone is fine) and every installed copy offers it on next open.
 // Updates install over the old app only if signed with the same key (this PC's release build config).
 import { useEffect, useRef } from 'react'
-import { dialog } from './dialog'
+import { dialog, progress } from './dialog'
 import { AppState, Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -24,11 +24,15 @@ export function newer(a: string, b: string) {
 type Release = { tag_name: string; body?: string; assets: { name: string; browser_download_url: string }[] }
 
 async function install(url: string, tag: string) {
-  dialog(`Downloading JobPilot ${tag}…`, 'Keep the app open. Android asks you to confirm the install when the download finishes.')
+  const title = `Downloading JobPilot ${tag}`
+  progress({ title, done: 0, total: 0 })
   const target = `${FileSystem.cacheDirectory}jobpilot-${tag}.apk`
   await FileSystem.deleteAsync(target, { idempotent: true })
-  const { uri, status } = await FileSystem.downloadAsync(url, target)
-  if (status !== 200) throw new Error(`download failed (${status})`)
+  const dl = FileSystem.createDownloadResumable(url, target, {}, e => progress({ title, done: e.totalBytesWritten, total: e.totalBytesExpectedToWrite }))
+  let res
+  try { res = await dl.downloadAsync() } finally { progress(null) }
+  if (!res || res.status !== 200) throw new Error(`download failed (${res?.status ?? 'cancelled'})`)
+  const uri = res.uri
   const contentUri = await FileSystem.getContentUriAsync(uri)
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: contentUri, type: 'application/vnd.android.package-archive', flags: 1, // FLAG_GRANT_READ_URI_PERMISSION

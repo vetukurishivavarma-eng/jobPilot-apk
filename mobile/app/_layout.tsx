@@ -8,7 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { api, ApiError, auth, loadStored, looksLikeJob, msg, profileGaps, SessionCtx, setToken, type Gaps, type User } from '../src/lib'
 import { Loading, useColors } from '../src/ui'
 import { useAutoUpdate } from '../src/update'
-import { DialogHost } from '../src/dialog'
+import { DialogHost, ProgressHost } from '../src/dialog'
 
 export default function Root() {
   const c = useColors()
@@ -62,6 +62,7 @@ export default function Root() {
           </Stack>
         </KeyboardAvoidingView>
         <DialogHost />
+        <ProgressHost />
       </SessionCtx.Provider>
     </SafeAreaProvider>
   )

@@ -3,7 +3,7 @@
 // start) waits for it instead of falling back to the stock Android pop-up.
 import { useEffect, useRef, useState } from 'react'
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
-import { Btn, useColors } from './ui'
+import { Bar, Btn, useColors } from './ui'
 
 export type DialogButton = { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }
 type Dialog = { title: string; message?: string; buttons: DialogButton[] }
@@ -23,6 +23,37 @@ export function offerLocation(city: string | null | undefined, add: (city: strin
     { text: 'Not now', style: 'cancel' },
     { text: `Add ${city}`, onPress: () => { add(city).then(() => dialog(`${city} added`, 'Your job list now includes it.')).catch(e => dialog('Could not add it', String(e?.message ?? e))) } },
   ])
+}
+
+type Progress = { title: string; done: number; total: number }
+let setProgress: ((p: Progress | null) => void) | null = null
+
+/** Shows (or, with null, hides) the download progress pop-up. done/total in bytes; total <= 0 = unknown size. */
+export function progress(p: Progress | null) { setProgress?.(p) }
+
+export function ProgressHost() {
+  const c = useColors()
+  const [p, setP] = useState<Progress | null>(null)
+  useEffect(() => { setProgress = setP; return () => { setProgress = null } }, [])
+  const mb = (b: number) => (b / 1048576).toFixed(1)
+  const pct = p && p.total > 0 ? Math.min(100, Math.round((p.done / p.total) * 100)) : null
+  return (
+    <Modal transparent visible={!!p} animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(16,19,17,0.55)', justifyContent: 'center', padding: 24 }}>
+        {p && (
+          <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 20, gap: 12, borderWidth: 1, borderColor: c.line }}>
+            <Text style={{ color: c.ink, fontSize: 19, fontWeight: '800' }}>{p.title}</Text>
+            <Bar percent={pct ?? 0} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15 }}>{pct === null ? '…' : `${pct}%`}</Text>
+              <Text style={{ color: c.muted, fontSize: 13 }}>{mb(p.done)}{p.total > 0 ? ` of ${mb(p.total)}` : ''} MB</Text>
+            </View>
+            <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>Keep the app open. Android asks you to confirm the install when it's done.</Text>
+          </View>
+        )}
+      </View>
+    </Modal>
+  )
 }
 
 export function DialogHost() {
