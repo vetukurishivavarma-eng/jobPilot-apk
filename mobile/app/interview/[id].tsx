@@ -48,6 +48,7 @@ export default function InterviewSessionScreen() {
       {s.recordingExpiresAt && <Recording s={s} />}
       {s.mode === 'LIVE' && s.done && !s.report && <RetryReport s={s} onChange={setS} />}
       {s.report && <Report r={s.report} />}
+      {api.needsModelAnswers(s) && <ModelAnswers s={s} onChange={setS} />}
       {s.report && <Label>Question by question</Label>}
       <Row wrap gap={6}>
         {s.items.map((q, n) => (
@@ -88,7 +89,7 @@ export default function InterviewSessionScreen() {
           {fb.improvements.length > 0 && <View style={{ gap: 4 }}><Label>To improve</Label>{fb.improvements.map((x, n) => <T key={n} small>• {x}</T>)}</View>}
           {fb.improvedAnswer && (
             <View style={{ gap: 4 }}>
-              <Label>A stronger answer, from your own facts</Label>
+              <Label>What a 5/5 answer sounds like (from your own facts)</Label>
               <View style={{ backgroundColor: c.bg, borderRadius: 8, padding: 10 }}><T small selectable>{fb.improvedAnswer}</T></View>
             </View>
           )}
@@ -97,6 +98,24 @@ export default function InterviewSessionScreen() {
       )}
     </Screen>
   )
+}
+
+/** Writes the 5/5 answers once the report is in (one AI call); a retry button if the AI is busy. */
+function ModelAnswers({ s, onChange }: { s: InterviewSession; onChange: (s: InterviewSession) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const tries = useRef(0)
+  // only our strongest model writes these; when it's busy, wait a minute and try once more by itself
+  const run = () => {
+    setBusy(true); setError(null); tries.current++
+    api.modelAnswers(s.id).then(onChange).catch(e => {
+      setError(msg(e))
+      if (tries.current < 2) setTimeout(run, 65_000)
+    }).finally(() => setBusy(false))
+  }
+  useEffect(run, [s.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (busy) return <T small muted>Writing what a 5/5 answer to each question sounds like…</T>
+  return error ? <View style={{ gap: 6 }}><ErrorText>{error}</ErrorText><Btn kind="ghost" small title="Try again" onPress={run} /></View> : null
 }
 
 function Report({ r }: { r: InterviewReport }) {
