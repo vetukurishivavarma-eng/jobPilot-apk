@@ -9,13 +9,13 @@ const allowHttp = config => withAndroidManifest(config, c => {
 module.exports = {
   name: 'JobPilot',
   slug: 'jobpilot',
-  version: '1.4.4',
+  version: '1.4.5',
   icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'jobpilot',
   userInterfaceStyle: 'automatic',
   android: {
-    package: 'com.jobpilot.app', versionCode: 16,
+    package: 'com.jobpilot.app', versionCode: 17,
     permissions: ['CAMERA', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'POST_NOTIFICATIONS', 'REQUEST_INSTALL_PACKAGES'], // spoken live interview: camera, mic, 'recording ready'
     blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW'],
     adaptiveIcon: { foregroundImage: './assets/adaptive-fg.png', backgroundImage: './assets/adaptive-bg.png' },
