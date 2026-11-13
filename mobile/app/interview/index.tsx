@@ -3,7 +3,7 @@ import { dialog } from '../../src/dialog'
 import { Pressable, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
-import { api, ApiError, msg, serverAddress, useSession, type Billing, type InterviewSummary, type Job } from '../../src/lib'
+import { api, ApiError, msg, PRO_PERKS, serverAddress, useSession, type Billing, type InterviewPack, type InterviewSummary, type Job } from '../../src/lib'
 import { Btn, Card, Chip, ErrorText, Input, Label, Locked, Row, Screen, T, Tag, useColors } from '../../src/ui'
 
 /** Mock interview coach: start from a job or a typed role; past sessions below. */
@@ -14,6 +14,8 @@ export default function Interviews() {
   const [history, setHistory] = useState<InterviewSummary[] | null>(null)
   const [jobId, setJobId] = useState('')
   const [role, setRole] = useState('')
+  const [pack, setPack] = useState('')
+  const [packs, setPacks] = useState<InterviewPack[]>([])
   const [live, setLive] = useState(true)
   const [billing, setBilling] = useState<Billing | null>(null)
   const [needsPlan, setNeedsPlan] = useState(false)
@@ -26,6 +28,7 @@ export default function Interviews() {
     api.listJobs({ status: 'ACTIVE', q: '', includeClosed: false, page: 0, sort: 'match' }).then(p => setJobs(p.items)).catch(e => setError(msg(e)))
     api.listInterviews().then(setHistory).catch(e => setError(msg(e)))
     api.billing().then(setBilling).catch(() => {})
+    api.interviewPacks().then(setPacks).catch(() => {})
   }, [unlocked]))
 
   if (!unlocked) return <Locked gaps={gaps} what="Interview practice" />
@@ -33,7 +36,7 @@ export default function Interviews() {
   async function start() {
     setBusy(true)
     setError(null)
-    try { router.push(`/interview/${(await api.startInterview({ ...(jobId ? { jobId } : { role: role.trim() }), live })).id}`) }
+    try { router.push(`/interview/${(await api.startInterview({ ...(pack ? { pack } : jobId ? { jobId } : { role: role.trim() }), live })).id}`) }
     catch (e) {
       if (e instanceof ApiError && e.code === 'PAYMENT_REQUIRED') { setNeedsPlan(true); api.billing().then(setBilling).catch(() => {}) }
       else setError(msg(e))
@@ -52,20 +55,30 @@ export default function Interviews() {
       {billing?.enabled && (needsPlan || billing.credits === 0)
         ? <Plans billing={billing} onPaid={b => { setBilling(b); if (b.credits > 0 && needsPlan) { setNeedsPlan(false); start() } }} />
         : billing?.enabled ? <T small muted>{billing.credits} live interview{billing.credits === 1 ? '' : 's'} left.</T> : null}
+      {billing?.proUntil ? <T small bold style={{ color: c.accent }}>Pro until {new Date(billing.proUntil).toLocaleDateString()}</T> : null}
+      {packs.length > 0 && (
+        <Card>
+          <Label>Company interview packs</Label>
+          <T small muted>In the style of each company's fresher rounds, as publicly described. Fresh questions every time, never leaked ones.</T>
+          <Row wrap gap={6}>
+            {packs.map(p => <Chip key={p.id} label={`${p.company} · ${p.rounds}`} on={pack === p.id} onPress={() => { setPack(pack === p.id ? '' : p.id); setJobId(''); setRole('') }} />)}
+          </Row>
+        </Card>
+      )}
       <Card>
         <Label>A job from your list</Label>
         <Row wrap gap={6}>
           {jobs.slice(0, 12).map(j => (
-            <Chip key={j.id} label={`${j.title} · ${j.company}`} on={jobId === j.id} onPress={() => { setJobId(jobId === j.id ? '' : j.id); setRole('') }} />
+            <Chip key={j.id} label={`${j.title} · ${j.company}`} on={jobId === j.id} onPress={() => { setJobId(jobId === j.id ? '' : j.id); setRole(''); setPack('') }} />
           ))}
           {jobs.length === 0 && <T small muted>No jobs in your inbox yet.</T>}
         </Row>
-        <Input label="Or a role" placeholder="Backend Engineer" maxLength={120} value={role} onChangeText={v => { setRole(v); if (v) setJobId('') }} />
+        <Input label="Or a role" placeholder="Backend Engineer" maxLength={120} value={role} onChangeText={v => { setRole(v); if (v) { setJobId(''); setPack('') } }} />
         <Row wrap gap={6}>
           <Chip label="Live interview" on={live} onPress={() => setLive(true)} />
           <Chip label="Practice set (6 fixed)" on={!live} onPress={() => setLive(false)} />
         </Row>
-        <Btn kind="accent" title={busy ? 'Starting…' : live ? 'Start interview' : 'Start practice'} busy={busy} disabled={!jobId && !role.trim()} onPress={start} />
+        <Btn kind="accent" title={busy ? 'Starting…' : pack ? `Start ${packs.find(p => p.id === pack)?.company} interview` : live ? 'Start interview' : 'Start practice'} busy={busy} disabled={!jobId && !role.trim() && !pack} onPress={start} />
         <ErrorText>{error}</ErrorText>
       </Card>
 
@@ -107,15 +120,16 @@ function Plans({ billing, onPaid }: { billing: Billing; onPaid: (b: Billing) => 
   }
   return (
     <Card tone="accent">
-      <T bold style={{ fontSize: 17 }}>Get your live interview</T>
+      <T bold style={{ fontSize: 17 }}>Get your live interview, or go Pro</T>
       {billing.plans.map(p => (
         <Pressable key={p.id} disabled={!!busy} onPress={() => buy(p.id)}
-          style={({ pressed }) => ({ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, backgroundColor: c.card, opacity: pressed || busy === p.id ? 0.6 : 1 })}>
+          style={({ pressed }) => ({ borderWidth: p.id === 'PRO' ? 2 : 1, borderColor: p.id === 'PRO' ? c.accent : c.line, borderRadius: 12, padding: 12, backgroundColor: c.card, opacity: pressed || busy === p.id ? 0.6 : 1 })}>
           <Row>
             <T bold style={{ fontSize: 22 }}>₹{p.rupees}</T>
             <View style={{ flex: 1 }}>
               <T bold>{p.label}</T>
               <T small muted>{p.interviews} interview{p.interviews === 1 ? '' : 's'}{p.days ? `, within ${p.days} days` : ''} · report + recording</T>
+              {p.id === 'PRO' && <T small style={{ color: c.accent }}>{PRO_PERKS}</T>}
             </View>
           </Row>
         </Pressable>
