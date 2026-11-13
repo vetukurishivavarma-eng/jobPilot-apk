@@ -43,7 +43,7 @@ export default function InterviewSessionScreen() {
 
   return (
     <Screen header>
-      <Stack.Screen options={{ title: s.title }} />
+      <Stack.Screen options={{ title: s.title, headerShown: true }} />{/* the live view hid the header (and its back arrow) */}
       {s.source === 'TEMPLATE' && <T small muted>Standard questions (the local AI wasn't available to write ones for this job).</T>}
       {s.recordingExpiresAt && <Recording s={s} />}
       {s.mode === 'LIVE' && s.done && !s.report && <RetryReport s={s} onChange={setS} />}
@@ -167,7 +167,7 @@ function LiveInterview({ id, onFinished }: { id: string; onFinished: () => void 
 
   if (perm !== 'ok') return (
     <Screen header>
-      <Stack.Screen options={{ title: 'Interview' }} />
+      <Stack.Screen options={{ title: 'Interview', headerShown: true }} />
       <Card><T>{perm === 'asking' ? 'Allow the camera and microphone to start the interview.' : 'The interview needs your camera and microphone. Allow them in Settings > Apps > JobPilot > Permissions, then open this interview again.'}</T></Card>
     </Screen>
   )

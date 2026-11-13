@@ -38,7 +38,7 @@ export const currentToken = () => token
 
 export const msg = (e: unknown) =>
   e instanceof ApiError ? e.message : server === DEFAULT_SERVER
-    ? 'The server is waking up (free hosting sleeps when idle). Wait half a minute and try again.'
+    ? "Couldn't reach JobPilot. Check your internet connection, then try again in a moment."
     : `Can't reach ${server || 'the server'}. Is the PC on, JobPilot running, and the phone on the same Wi-Fi?`
 
 export type Gaps = { missing: string[]; percent: number }
