@@ -7,6 +7,15 @@ import { Bar, Btn, Card, ErrorText, Footer, Input, Label, Loading, Row, Screen, 
 
 const toList = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean)
 const num = (s: string) => (s.trim() === '' ? null : Number(s))
+/** DD/MM/YYYY -> yyyy-mm-dd; '' -> null; anything else -> undefined (invalid). */
+const isoDate = (s: string) => {
+  if (!s.trim()) return null
+  const m = s.trim().match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+  if (!m) return undefined
+  const iso = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  const d = new Date(iso + 'T00:00:00Z')
+  return !isNaN(d.getTime()) && d.toISOString().startsWith(iso) && d < new Date() ? iso : undefined
+}
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 export default function ProfileScreen() {
@@ -14,7 +23,7 @@ export default function ProfileScreen() {
   const c = useColors()
   const [p, setP] = useState<Profile | null>(null)
   // comma lists and numbers are edited as text, converted on save
-  const [text, setText] = useState({ skills: '', desiredRoles: '', desiredLocations: '', years: '', salary: '', notice: '' })
+  const [text, setText] = useState({ skills: '', desiredRoles: '', desiredLocations: '', years: '', salary: '', notice: '', dob: '' })
   const [resumes, setResumes] = useState<Resume[]>([])
   const [error, setError] = useState<ApiError | string | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -26,6 +35,7 @@ export default function ProfileScreen() {
     setText({
       skills: x.skills.join(', '), desiredRoles: x.desiredRoles.join(', '), desiredLocations: x.desiredLocations.join(', '),
       years: x.yearsExperience?.toString() ?? '', salary: x.expectedSalary?.toString() ?? '', notice: x.noticePeriodDays?.toString() ?? '',
+      dob: x.dateOfBirth ? x.dateOfBirth.split('-').reverse().join('/') : '',
     })
   }
   const loadResumes = useCallback(() => api.listResumes().then(setResumes).catch(e => setError(msg(e))), [])
@@ -39,11 +49,14 @@ export default function ProfileScreen() {
   const bindText = (k: keyof typeof text) => ({ value: text[k], onChangeText: (v: string) => { setText({ ...text, [k]: v }); setDirty(true) } })
 
   async function save() {
+    const dob = isoDate(text.dob)
+    if (dob === undefined) return setError('Date of birth: use DD/MM/YYYY, e.g. 12/05/2000')
     setBusy('save')
     setError(null)
     try {
       load(await api.saveProfile({
         ...p!,
+        dateOfBirth: dob,
         skills: toList(text.skills), desiredRoles: toList(text.desiredRoles), desiredLocations: toList(text.desiredLocations),
         yearsExperience: num(text.years), expectedSalary: num(text.salary), noticePeriodDays: num(text.notice),
         salaryCurrency: p!.salaryCurrency?.trim().toUpperCase() || null,
@@ -157,6 +170,8 @@ export default function ProfileScreen() {
         </Row>
         <Input label="Notice period (days)" keyboardType="number-pad" {...bindText('notice')} />
         <Input label="Work authorization" placeholder="Indian citizen" maxLength={200} {...bind('workAuthorization')} />
+        <Input label="Date of birth (DD/MM/YYYY), for “are you 18+?” on forms" placeholder="12/05/2000" keyboardType="numbers-and-punctuation" maxLength={10} {...bindText('dob')} />
+        <Row><T style={{ flex: 1 }}>Legally authorized to work where the job is (sponsorship: No)</T><Switch value={p.authorizedToWork ?? true} onValueChange={v => set('authorizedToWork', v)} trackColor={{ true: c.accent }} /></Row>
         <Row><T style={{ flex: 1 }}>Willing to relocate</T><Switch value={p.willingToRelocate} onValueChange={v => set('willingToRelocate', v)} trackColor={{ true: c.accent }} /></Row>
       </Card>
 

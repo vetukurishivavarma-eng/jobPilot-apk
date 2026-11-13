@@ -18,6 +18,8 @@ export type Profile = {
   headline: string | null; phone: string | null; location: string | null; currentTitle: string | null
   yearsExperience: number | null; expectedSalary: number | null; salaryCurrency: string | null
   noticePeriodDays: number | null; workAuthorization: string | null; willingToRelocate: boolean
+  /** yyyy-mm-dd; answers "are you 18+?" on forms. authorizedToWork answers work-authorization (yes) and visa-sponsorship (no) questions. */
+  dateOfBirth: string | null; authorizedToWork: boolean
   linkedinUrl: string | null; githubUrl: string | null; portfolioUrl: string | null; summary: string | null
   skills: string[]; desiredRoles: string[]; desiredLocations: string[]
   experiences: Experience[]; educations: Education[]; updatedAt: string | null

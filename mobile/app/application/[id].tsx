@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { dialog } from '../../src/dialog'
 import { View } from 'react-native'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
 import { api, msg, STAGES, STATUS, stageIsTerminal, type Application, type FormField, type Stage } from '../../src/lib'
@@ -31,7 +31,8 @@ export default function ApplicationScreen() {
   const [saving, setSaving] = useState(false)
   const [applying, setApplying] = useState(false)
 
-  useEffect(() => { api.getApplication(id).then(setA).catch(e => setError(msg(e))) }, [id])
+  // reloads on return from the auto-fill screen (it may have been submitted there)
+  useFocusEffect(useCallback(() => { api.getApplication(id).then(setA).catch(e => setError(msg(e))) }, [id]))
   if (!a) return error ? <Screen header><ErrorText>{error}</ErrorText></Screen> : <Loading />
 
   const locked = a.status === 'FILLING' || a.status === 'SUBMITTED'
@@ -76,8 +77,12 @@ export default function ApplicationScreen() {
       {(a.status === 'READY' || a.status === 'NEEDS_INPUT') && a.applyUrl && (
         <Card tone="accent">
           <T bold>Ready to apply</T>
-          <T small muted>Open the form, copy your prepared answers from below, and submit on the site. (Auto-fill + submit runs only from the JobPilot extension on a PC.)</T>
-          <Btn kind="accent" title="Open application form" onPress={() => WebBrowser.openBrowserAsync(a.applyUrl!)} />
+          <T small muted>{a.missing > 0
+            ? `Answer the ${a.missing} question${a.missing === 1 ? '' : 's'} below first, then JobPilot can fill the form for you.`
+            : 'JobPilot opens the form, fills every answer, attaches your resume and presses Submit. A CAPTCHA, if any, is yours.'}</T>
+          <Btn kind="accent" title="Auto-fill & submit" disabled={a.missing > 0} onPress={() => router.push(`/apply/${a.id}?submit=1`)} />
+          <Btn kind="ghost" small title="Auto-fill, I'll check and submit" disabled={a.missing > 0} onPress={() => router.push(`/apply/${a.id}`)} />
+          <Btn kind="ghost" small title="Open application form" onPress={() => WebBrowser.openBrowserAsync(a.applyUrl!)} />
           <Btn kind="ghost" small title="I’ve applied — track it" busy={applying}
             onPress={async () => { setApplying(true); try { setA(await api.markApplied(a!.id)) } catch (e) { setError(msg(e)) } finally { setApplying(false) } }} />
         </Card>
