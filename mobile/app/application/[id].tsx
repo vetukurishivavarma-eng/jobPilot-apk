@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { dialog } from '../../src/dialog'
+import { dialog, offerLocation } from '../../src/dialog'
 import { View } from 'react-native'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
@@ -84,7 +84,7 @@ export default function ApplicationScreen() {
           <Btn kind="ghost" small title="Auto-fill, I'll check and submit" disabled={a.missing > 0} onPress={() => router.push(`/apply/${a.id}`)} />
           <Btn kind="ghost" small title="Open application form" onPress={() => WebBrowser.openBrowserAsync(a.applyUrl!)} />
           <Btn kind="ghost" small title="I’ve applied — track it" busy={applying}
-            onPress={async () => { setApplying(true); try { setA(await api.markApplied(a!.id)) } catch (e) { setError(msg(e)) } finally { setApplying(false) } }} />
+            onPress={async () => { setApplying(true); try { const n = await api.markApplied(a!.id); setA(n); offerLocation(n.suggestLocation, api.addPreferredLocation) } catch (e) { setError(msg(e)) } finally { setApplying(false) } }} />
         </Card>
       )}
 

@@ -16,6 +16,15 @@ export function dialog(title: string, message?: string, buttons: DialogButton[] 
   else pending = { title, message, buttons }
 }
 
+/** After applying in a new city: offer adding it to the preferred locations (more jobs there show up). */
+export function offerLocation(city: string | null | undefined, add: (city: string) => Promise<unknown>) {
+  if (!city) return
+  dialog(`Add ${city} to your preferred locations?`, `You applied to a job in ${city}. Adding it shows you more jobs there.`, [
+    { text: 'Not now', style: 'cancel' },
+    { text: `Add ${city}`, onPress: () => { add(city).then(() => dialog(`${city} added`, 'Your job list now includes it.')).catch(e => dialog('Could not add it', String(e?.message ?? e))) } },
+  ])
+}
+
 export function DialogHost() {
   const c = useColors()
   const [d, setD] = useState<Dialog | null>(null)

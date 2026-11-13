@@ -5,6 +5,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import * as FileSystem from 'expo-file-system/legacy'
 import { api, currentToken, msg, serverAddress, type Application } from '../../src/lib'
 import { Card, ErrorText, Loading, T, useColors } from '../../src/ui'
+import { offerLocation } from '../../src/dialog'
 
 /**
  * Auto-fill (and submit) on the phone: the job's own application page in a WebView, filled by the same script the
@@ -72,7 +73,7 @@ export default function AutoApplyScreen() {
           const a = await api.markApplied(id)
           setNote('Applied ✓ Saved to your tracker.')
           reply(m.id, { data: a })
-          setTimeout(() => router.back(), 2500)
+          setTimeout(() => { router.back(); offerLocation(a.suggestLocation, api.addPreferredLocation) }, 2500)
           return
         }
         default: return reply(m.id, {})
