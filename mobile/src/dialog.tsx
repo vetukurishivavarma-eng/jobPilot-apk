@@ -1,24 +1,30 @@
 // App-styled replacement for Alert.alert (same arguments), so confirmations look like JobPilot, not stock Android.
-// <DialogHost /> is mounted once in app/_layout.tsx; dialog() falls back to Alert.alert before it mounts.
+// <DialogHost /> is mounted once in app/_layout.tsx; a dialog() called before it mounts (the update check on a slow
+// start) waits for it instead of falling back to the stock Android pop-up.
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Animated, Modal, Pressable, Text, View } from 'react-native'
+import { Animated, Modal, Pressable, Text, View } from 'react-native'
 import { Btn, useColors } from './ui'
 
 export type DialogButton = { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }
 type Dialog = { title: string; message?: string; buttons: DialogButton[] }
 
 let show: ((d: Dialog) => void) | null = null
+let pending: Dialog | null = null
 
 export function dialog(title: string, message?: string, buttons: DialogButton[] = [{ text: 'OK' }]) {
   if (show) show({ title, message, buttons })
-  else Alert.alert(title, message, buttons)
+  else pending = { title, message, buttons }
 }
 
 export function DialogHost() {
   const c = useColors()
   const [d, setD] = useState<Dialog | null>(null)
   const pop = useRef(new Animated.Value(0)).current
-  useEffect(() => { show = setD; return () => { show = null } }, [])
+  useEffect(() => {
+    show = setD
+    if (pending) { setD(pending); pending = null }
+    return () => { show = null }
+  }, [])
   useEffect(() => {
     if (!d) return
     pop.setValue(0)
@@ -29,7 +35,7 @@ export function DialogHost() {
   const cancel = d?.buttons.find(b => b.style === 'cancel')
   return (
     <Modal transparent visible={!!d} animationType="fade" statusBarTranslucent onRequestClose={() => press(cancel)}>
-      <Pressable onPress={() => cancel && press(cancel)} style={{ flex: 1, backgroundColor: 'rgba(10,8,20,0.6)', justifyContent: 'center', padding: 24 }}>
+      <Pressable onPress={() => cancel && press(cancel)} style={{ flex: 1, backgroundColor: 'rgba(16,19,17,0.55)', justifyContent: 'center', padding: 24 }}>
         {d && (
           <Animated.View style={{ transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }], opacity: pop }}>
             <Pressable style={{ backgroundColor: c.card, borderRadius: 20, padding: 20, gap: 10, borderWidth: 1, borderColor: c.line }}>

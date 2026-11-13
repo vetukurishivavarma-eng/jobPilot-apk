@@ -3,7 +3,7 @@
 // Updates install over the old app only if signed with the same key (this PC's release build config).
 import { useEffect, useRef } from 'react'
 import { dialog } from './dialog'
-import { AppState, Platform, ToastAndroid } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as IntentLauncher from 'expo-intent-launcher'
@@ -24,7 +24,7 @@ export function newer(a: string, b: string) {
 type Release = { tag_name: string; body?: string; assets: { name: string; browser_download_url: string }[] }
 
 async function install(url: string, tag: string) {
-  ToastAndroid.show(`Downloading JobPilot ${tag}…`, ToastAndroid.LONG)
+  dialog(`Downloading JobPilot ${tag}…`, 'Keep the app open. Android asks you to confirm the install when the download finishes.')
   const target = `${FileSystem.cacheDirectory}jobpilot-${tag}.apk`
   await FileSystem.deleteAsync(target, { idempotent: true })
   const { uri, status } = await FileSystem.downloadAsync(url, target)

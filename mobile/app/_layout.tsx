@@ -54,6 +54,7 @@ export default function Root() {
               <Stack.Screen name="job/[id]" options={{ title: 'Job' }} />
               <Stack.Screen name="tailor/[id]" options={{ title: 'Tailor' }} />
               <Stack.Screen name="application/[id]" options={{ title: 'Application' }} />
+              <Stack.Screen name="apply/[id]" options={{ title: 'Apply' }} />
               <Stack.Screen name="add-job" options={{ title: 'Add a job', presentation: 'modal' }} />
               <Stack.Screen name="interview/index" options={{ title: 'Interview practice' }} />
               <Stack.Screen name="interview/[id]" options={{ title: 'Practice' }} />

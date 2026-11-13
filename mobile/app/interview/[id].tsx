@@ -172,11 +172,11 @@ function LiveInterview({ id, onFinished }: { id: string; onFinished: () => void 
     </Screen>
   )
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f0d17', paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <View style={{ flex: 1, backgroundColor: '#101311', paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <Stack.Screen options={{ headerShown: false }} />
       <WebView ref={web} source={{ uri: `${DEFAULT_SERVER}/live/${id}#t=${encodeURIComponent(currentToken() ?? '')}` }}
         onMessage={e => onMessage(e.nativeEvent.data)} mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback
-        javaScriptEnabled domStorageEnabled style={{ flex: 1, backgroundColor: '#0f0d17' }} />
+        javaScriptEnabled domStorageEnabled style={{ flex: 1, backgroundColor: '#101311' }} />
     </View>
   )
 }

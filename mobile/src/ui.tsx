@@ -3,18 +3,19 @@ import { ActivityIndicator, Animated, Easing, Pressable, RefreshControl, ScrollV
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 
-// Vivid palette: violet primary, pink pop, emerald for good matches, cyan for done; plus a dark twin.
+// JobPilot palette (same brand as the website): ink on warm paper, forest green for action and progress, one warm
+// marigold accent used sparingly (waypoints, highlights). Neutrals are warm, never lavender. Plus a dark twin.
 const light = {
-  bg: '#f6f3ff', card: '#ffffff', ink: '#1e1b4b', muted: '#6b6894', line: '#e6e1fa',
-  accent: '#7c3aed', accentSoft: '#ede9fe', pop: '#ec4899', popSoft: '#fce7f3',
-  good: '#059669', goodSoft: '#d1fae5', info: '#0891b2', infoSoft: '#cffafe',
-  danger: '#e11d48', warn: '#c2410c', warnSoft: '#ffedd5',
+  bg: '#F6F4EF', card: '#FFFFFF', ink: '#16181D', muted: '#6B6A64', line: '#E4E0D6',
+  accent: '#1F6F5C', accentSoft: '#E1EFE9', pop: '#A8591A', popSoft: '#FBEEDC',
+  good: '#2F7D4F', goodSoft: '#E0F0E5', info: '#2B5F9E', infoSoft: '#E3ECF6',
+  danger: '#B42318', dangerSoft: '#FBE7E4', warn: '#A15C0B', warnSoft: '#FBF0DC',
 }
 const dark: typeof light = {
-  bg: '#0e0a1f', card: '#1a1433', ink: '#f3f0ff', muted: '#a49fc7', line: '#2e2654',
-  accent: '#a78bfa', accentSoft: '#2b1f55', pop: '#f472b6', popSoft: '#45193a',
-  good: '#34d399', goodSoft: '#0f3a2e', info: '#22d3ee', infoSoft: '#0c3540',
-  danger: '#fb7185', warn: '#fb923c', warnSoft: '#43230f',
+  bg: '#101311', card: '#191D1A', ink: '#ECEAE4', muted: '#9C9A92', line: '#2A2F2B',
+  accent: '#5DBB9C', accentSoft: '#183028', pop: '#E9A23B', popSoft: '#3A2A14',
+  good: '#6CC38E', goodSoft: '#163022', info: '#7AA9E0', infoSoft: '#16263A',
+  danger: '#F2877C', dangerSoft: '#3A1A17', warn: '#E9A23B', warnSoft: '#36280F',
 }
 export type Colors = typeof light
 export const useColors = () => (useColorScheme() === 'dark' ? dark : light)
@@ -65,14 +66,14 @@ export function Label({ children }: { children: ReactNode }) {
 export function Card({ children, tone, style }: { children: ReactNode; tone?: 'accent' | 'warn' | 'danger'; style?: ViewStyle }) {
   const c = useColors()
   const stripe = tone === 'accent' ? c.accent : tone === 'warn' ? c.warn : tone === 'danger' ? c.danger : null
-  const bg = tone === 'warn' ? c.warnSoft : tone === 'accent' ? c.accentSoft : tone === 'danger' ? c.popSoft : c.card
-  return <View style={[s.card, { backgroundColor: bg, borderColor: c.line, shadowColor: c.accent }, stripe && { borderLeftWidth: 5, borderLeftColor: stripe }, style]}>{children}</View>
+  const bg = tone === 'warn' ? c.warnSoft : tone === 'accent' ? c.accentSoft : tone === 'danger' ? c.dangerSoft : c.card
+  return <View style={[s.card, { backgroundColor: bg, borderColor: c.line, shadowColor: '#000000' }, stripe && { borderLeftWidth: 5, borderLeftColor: stripe }, style]}>{children}</View>
 }
 
 export function Btn({ title, onPress, kind = 'solid', disabled, busy, small }: { title: string; onPress: () => void; kind?: 'solid' | 'ghost' | 'danger' | 'accent'; disabled?: boolean; busy?: boolean; small?: boolean }) {
   const c = useColors()
-  const bg = kind === 'solid' ? c.accent : kind === 'accent' ? c.pop : 'transparent'
-  const fg = kind === 'solid' || kind === 'accent' ? '#ffffff' : kind === 'danger' ? c.danger : c.accent
+  const bg = kind === 'solid' ? c.accent : kind === 'accent' ? c.ink : 'transparent'
+  const fg = kind === 'solid' ? '#ffffff' : kind === 'accent' ? c.bg : kind === 'danger' ? c.danger : c.accent
   const off = disabled || busy
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!off }} disabled={off} onPress={onPress}
@@ -109,7 +110,7 @@ export function Chip({ label, on, onPress, disabled }: { label: string; on: bool
 
 export function Tag({ label, tone }: { label: string; tone?: 'accent' | 'warn' | 'danger' | 'ink' }) {
   const c = useColors()
-  const [bg, fg] = tone === 'accent' ? [c.accentSoft, c.accent] : tone === 'warn' ? [c.warnSoft, c.warn] : tone === 'danger' ? [c.popSoft, c.danger] : tone === 'ink' ? [c.infoSoft, c.info] : [c.accentSoft, c.accent]
+  const [bg, fg] = tone === 'accent' ? [c.accentSoft, c.accent] : tone === 'warn' ? [c.warnSoft, c.warn] : tone === 'danger' ? [c.dangerSoft, c.danger] : tone === 'ink' ? [c.infoSoft, c.info] : [c.accentSoft, c.accent]
   return <Text style={[s.tag, { backgroundColor: bg, color: fg }]}>{label}</Text>
 }
 
@@ -149,7 +150,7 @@ export function Loading() {
   return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}><AnimatedLogo size={84} /></View>
 }
 
-/** The paper-plane logo: springs in, then floats with a soft pulsing glow (built-in Animated, native driver). */
+/** The JobPilot mark (assets/icon.png): springs in, then floats with a soft pulsing glow (built-in Animated, native driver). */
 export function AnimatedLogo({ size = 96 }: { size?: number }) {
   const c = useColors()
   const enter = useRef(new Animated.Value(0)).current
@@ -190,7 +191,7 @@ const s = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 4 },
   title: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, lineHeight: 36 },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  card: { borderWidth: 1, borderRadius: 18, padding: space, gap: 10, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 16, padding: space, gap: 10, shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   btn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18 },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 12 },
   input: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
