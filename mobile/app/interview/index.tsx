@@ -158,8 +158,7 @@ function Plans({ billing, onPaid }: { billing: Billing; onPaid: (b: Billing) => 
           <Btn title="I've paid" busy={busy === 'utr'} disabled={utr.replace(/\s/g, '').length !== 12} onPress={claim} />
         </View>
       )}
-      {sent && <T small bold style={{ color: c.accent }}>Thanks! We'll confirm your payment within a few hours, then it unlocks automatically.</T>}
-      {(billing.pending ?? 0) > 0 && !sent && <T small muted>{billing.pending} payment{billing.pending === 1 ? '' : 's'} being checked. It unlocks as soon as it's confirmed.</T>}
+      {sent && <T small bold style={{ color: c.accent }}>Thanks! Your plan is active. (We check every payment; one that never arrived is cancelled.)</T>}
       <ErrorText>{error}</ErrorText>
     </Card>
   )
